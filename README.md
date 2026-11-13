@@ -24,9 +24,6 @@
 
 [![Download Windows Release](https://img.shields.io/badge/⚡_Download_Aether-Aether--Browser.exe_(Windows_x64)-22c55e?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/virkyu/aether-antiderect-browser/releases/latest)
 
-[![GitHub Release Date](https://img.shields.io/github/release-date/virkyu/aether-antiderect-browser?style=flat-square&color=22c55e)](https://github.com/virkyu/aether-antiderect-browser/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/virkyu/aether-antiderect-browser/total?style=flat-square&color=3b82f6)](https://github.com/virkyu/aether-antiderect-browser/releases)
-
 > 💡 **100% Portable (x64)**: Just download `Aether-Browser.exe` and launch it. Your database, isolated profiles, and preferences are automatically stored locally in `~/.aether`.
 
 [👉 **Browse all releases and changelogs on GitHub**](https://github.com/virkyu/aether-antiderect-browser/releases)
@@ -227,6 +224,12 @@ Verified test coverage includes:
     │   └── models/         # Rust data structures
     └── Cargo.toml          # Rust dependencies & metadata
 ```
+
+---
+
+## ☕ Vibe Coding Notice
+
+> ⚠️ **Notice:** This application was pretty heavily **vibe-coded** — rapidly designed, iterated, and built through intensive human-in-the-loop agentic AI workflows. It cuts straight to practical antidetect capabilities, physical process isolation, and clean UI aesthetics without enterprise bloat. Expect raw utility and clean vibes.
 
 ---
 
