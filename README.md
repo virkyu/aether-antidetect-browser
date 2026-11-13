@@ -6,6 +6,8 @@
 
 **Next-Generation, Native Multi-Account Antidetect Desktop Browser**
 
+*A 100% Free & Open-Source Alternative to Dolphin{anty}, AdsPower & Multilogin*
+
 *Engineered with Rust, Tauri 2, React 19 & Tailwind CSS v4 for uncompromising speed, stealth, and total privacy.*
 
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app/)
@@ -38,7 +40,7 @@
 
 ## ⚡ Overview
 
-**Aether Antidetect** is an ultra-fast, local-first desktop application designed for multi-accounting, marketing operations, privacy auditing, and web automation. Inspired by enterprise solutions like *Dolphin{anty}*, *AdsPower*, and *Multilogin*, Aether strips away cloud surveillance, subscription tiers, and heavy Electron bloat in favor of a lean, native **Rust core** paired with a modern **React 19** interface.
+**Aether Antidetect** is an ultra-fast, local-first, **100% free and open-source alternative to Dolphin{anty} (Anty Dolphin), AdsPower, Octo Browser, and Multilogin**. Designed for multi-accounting, marketing operations, traffic arbitrage, privacy auditing, and web automation, Aether completely eliminates subscription paywalls, artificial profile limits, and heavy Electron bloat in favor of a lean, native **Rust core** paired with a modern **React 19** interface.
 
 Every profile operates inside a mathematically isolated sandbox with its own runtime parameters, dedicated proxy route, unique hardware fingerprints, and private storage engine.
 
