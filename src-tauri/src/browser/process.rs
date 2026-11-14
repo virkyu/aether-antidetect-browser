@@ -69,11 +69,21 @@ impl ProcessManager {
             .await
             .map_err(|e| format!("Failed to create user data directory: {}", e))?;
 
-        // Check lockfile
+        // Check and clean any stale lockfiles
         let lock_file = profile_dir.join(".lock");
         if lock_file.exists() {
             tracing::warn!("Existing lockfile detected for profile {}, cleaning up", profile_id);
             let _ = tokio::fs::remove_file(&lock_file).await;
+        }
+
+        let singleton_lock = data_dir.join("SingletonLock");
+        if singleton_lock.exists() {
+            let _ = tokio::fs::remove_file(&singleton_lock).await;
+        }
+
+        let chromium_lock = data_dir.join("lockfile");
+        if chromium_lock.exists() {
+            let _ = tokio::fs::remove_file(&chromium_lock).await;
         }
 
         // Pre-configure Chromium / Brave Default Preferences safely (merge to preserve disk cache, cookies and performance)

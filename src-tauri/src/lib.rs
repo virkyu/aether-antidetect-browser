@@ -8,14 +8,26 @@ pub mod services;
 mod tests;
 
 use std::sync::Arc;
-use tauri::{image::Image, Manager};
+use tauri::Manager;
 use browser::ProcessManager;
 use database::init_db;
 use services::ProfileService;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tracing_subscriber::fmt::init();
+    let mut log_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    log_dir.push(".aether");
+    let _ = std::fs::create_dir_all(&log_dir);
+    let log_file = log_dir.join("app.log");
+
+    if let Ok(file) = std::fs::File::create(&log_file) {
+        tracing_subscriber::fmt()
+            .with_writer(file)
+            .with_max_level(tracing::Level::DEBUG)
+            .init();
+    } else {
+        tracing_subscriber::fmt::init();
+    }
 
     tracing::info!("Initializing Aether Browser engine and storage...");
 
@@ -45,17 +57,8 @@ pub fn run() {
             commands::delete_proxy,
             commands::check_proxy,
         ])
-        .setup(|app| {
+        .setup(|_app| {
             tracing::info!("Aether Browser desktop workspace initialized.");
-
-            // Explicitly apply runtime icon to all windows
-            let icon_bytes = include_bytes!("../icons/icon.png");
-            if let Ok(icon) = Image::from_bytes(icon_bytes) {
-                for (_label, window) in app.webview_windows() {
-                    let _ = window.set_icon(icon.clone());
-                }
-            }
-
             Ok(())
         })
         .run(tauri::generate_context!())

@@ -16,6 +16,9 @@ pub fn detect_chromium_executable(preferred_browser: Option<&BrowserType>) -> Op
     ];
 
     let local_appdata = std::env::var("LOCALAPPDATA").ok();
+    let program_files = std::env::var("ProgramFiles").ok();
+    let program_files_x86 = std::env::var("ProgramFiles(x86)").ok();
+    let program_w6432 = std::env::var("ProgramW6432").ok();
 
     let check_paths = |paths: &[&str]| -> Option<PathBuf> {
         for path in paths {
@@ -37,34 +40,86 @@ pub fn detect_chromium_executable(preferred_browser: Option<&BrowserType>) -> Op
         None
     };
 
-    // If a specific browser was selected by the user, test that browser first!
+    let check_env_pf = |subpath: &str| -> Option<PathBuf> {
+        for env_dir in [&program_files, &program_files_x86, &program_w6432] {
+            if let Some(dir) = env_dir {
+                let p = Path::new(dir).join(subpath);
+                if p.exists() {
+                    return Some(p);
+                }
+            }
+        }
+        None
+    };
+
+    let check_where = |cmd_name: &str| -> Option<PathBuf> {
+        #[cfg(windows)]
+        {
+            if let Ok(output) = std::process::Command::new("where").arg(cmd_name).output() {
+                if output.status.success() {
+                    if let Ok(text) = String::from_utf8(output.stdout) {
+                        for line in text.lines() {
+                            let p = PathBuf::from(line.trim());
+                            if p.exists() {
+                                return Some(p);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    };
+
+    let find_brave = || -> Option<PathBuf> {
+        check_paths(&brave_paths)
+            .or_else(|| check_appdata(r"BraveSoftware\Brave-Browser\Application\brave.exe"))
+            .or_else(|| check_env_pf(r"BraveSoftware\Brave-Browser\Application\brave.exe"))
+            .or_else(|| check_where("brave.exe"))
+            .or_else(|| check_where("brave"))
+    };
+
+    let find_chrome = || -> Option<PathBuf> {
+        check_paths(&chrome_paths)
+            .or_else(|| check_appdata(r"Google\Chrome\Application\chrome.exe"))
+            .or_else(|| check_env_pf(r"Google\Chrome\Application\chrome.exe"))
+            .or_else(|| check_where("chrome.exe"))
+            .or_else(|| check_where("chrome"))
+    };
+
+    let find_edge = || -> Option<PathBuf> {
+        check_paths(&edge_paths)
+            .or_else(|| check_appdata(r"Microsoft\Edge\Application\msedge.exe"))
+            .or_else(|| check_env_pf(r"Microsoft\Edge\Application\msedge.exe"))
+            .or_else(|| check_where("msedge.exe"))
+            .or_else(|| check_where("msedge"))
+    };
+
+    // If a specific browser was selected by the user, prioritize it, then fallback gracefully!
     if let Some(pref) = preferred_browser {
         match pref {
             BrowserType::Brave => {
-                if let Some(p) = check_paths(&brave_paths).or_else(|| check_appdata(r"BraveSoftware\Brave-Browser\Application\brave.exe")) {
+                if let Some(p) = find_brave() {
                     return Some(p);
                 }
             }
             BrowserType::Chrome => {
-                if let Some(p) = check_paths(&chrome_paths).or_else(|| check_appdata(r"Google\Chrome\Application\chrome.exe")) {
+                if let Some(p) = find_chrome() {
                     return Some(p);
                 }
             }
             BrowserType::Edge => {
-                if let Some(p) = check_paths(&edge_paths).or_else(|| check_appdata(r"Microsoft\Edge\Application\msedge.exe")) {
+                if let Some(p) = find_edge() {
                     return Some(p);
                 }
             }
         }
     }
 
-    // Fallback: search any available Chromium engine
-    check_paths(&brave_paths)
-        .or_else(|| check_appdata(r"BraveSoftware\Brave-Browser\Application\brave.exe"))
-        .or_else(|| check_paths(&chrome_paths))
-        .or_else(|| check_appdata(r"Google\Chrome\Application\chrome.exe"))
-        .or_else(|| check_paths(&edge_paths))
-        .or_else(|| check_appdata(r"Microsoft\Edge\Application\msedge.exe"))
+    // Universal Fallback: test all available engines in order
+    find_brave()
+        .or_else(find_chrome)
+        .or_else(find_edge)
 }
 
 pub fn extract_proxy_host(proxy_str: &str) -> Option<&str> {

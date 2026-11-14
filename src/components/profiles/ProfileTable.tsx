@@ -200,6 +200,14 @@ export const ProfileTable: React.FC = () => {
     });
   };
 
+  const handleLaunch = async (id: string) => {
+    try {
+      await startProfile(id);
+    } catch (err: any) {
+      alert(`Błąd uruchamiania profilu:\n${err?.message || String(err)}`);
+    }
+  };
+
   // If viewing details of a profile
   if (activeDetailProfile) {
     return <ProfileDetailView profile={activeDetailProfile} />;
@@ -715,7 +723,7 @@ export const ProfileTable: React.FC = () => {
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={() => startProfile(profile.id)}
+                          onClick={() => handleLaunch(profile.id)}
                           className="h-7 px-3 text-xs gap-1.5 font-semibold"
                         >
                           <Play className="w-3 h-3 fill-current" />
@@ -952,7 +960,7 @@ export const ProfileTable: React.FC = () => {
                               variant="secondary"
                               size="sm"
                               className="h-7 px-2.5 text-emerald-400 hover:bg-emerald-500/10 font-semibold text-xs gap-1"
-                              onClick={() => startProfile(profile.id)}
+                              onClick={() => handleLaunch(profile.id)}
                               title="Start Profile"
                             >
                               <Play className="w-3 h-3 fill-current" />
