@@ -20,13 +20,13 @@
 
 <br />
 
-### 📥 Download Pre-built Release (Portable)
+### 📥 Download Pre-built Release (Windows x64)
 
-**No compilation or manual setup required!** Download the standalone portable Windows executable:
+**No compilation or manual setup required!** Download the Windows installer (or portable executable):
 
-[![Download Windows Release](https://img.shields.io/badge/⚡_Download_Aether-Aether--Browser.exe_(Windows_x64)-22c55e?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/virkyu/aether-antidetect-browser/releases/latest)
+[![Download Windows Release](https://img.shields.io/badge/⚡_Download_Aether-Aether--Browser--Setup.exe_(Windows_x64)-22c55e?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/virkyu/aether-antidetect-browser/releases/latest)
 
-> 💡 **100% Portable (x64)**: Just download `Aether-Browser.exe` and launch it. Your database, isolated profiles, and preferences are automatically stored locally in `~/.aether`.
+> 💡 **Quick Install (x64)**: Run `Aether-Browser-Setup.exe` (only 4.5 MB) to install cleanly on Windows 10/11 with desktop shortcut and icon. Your database, isolated profiles, and preferences are automatically stored locally in `~/.aether`.
 
 [👉 **Browse all releases and changelogs on GitHub**](https://github.com/virkyu/aether-antidetect-browser/releases)
 
