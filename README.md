@@ -24,11 +24,11 @@
 
 **No compilation or manual setup required!** Download the standalone portable Windows executable:
 
-[![Download Windows Release](https://img.shields.io/badge/⚡_Download_Aether-Aether--Browser.exe_(Windows_x64)-22c55e?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/virkyu/aether-antiderect-browser/releases/latest)
+[![Download Windows Release](https://img.shields.io/badge/⚡_Download_Aether-Aether--Browser.exe_(Windows_x64)-22c55e?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/virkyu/aether-antidetect-browser/releases/latest)
 
 > 💡 **100% Portable (x64)**: Just download `Aether-Browser.exe` and launch it. Your database, isolated profiles, and preferences are automatically stored locally in `~/.aether`.
 
-[👉 **Browse all releases and changelogs on GitHub**](https://github.com/virkyu/aether-antiderect-browser/releases)
+[👉 **Browse all releases and changelogs on GitHub**](https://github.com/virkyu/aether-antidetect-browser/releases)
 
 ---
 
@@ -120,8 +120,8 @@ Every profile operates inside a mathematically isolated sandbox with its own run
 
 For most users, building from source is not required:
 
-1. Go to [**GitHub Releases**](https://github.com/virkyu/aether-antiderect-browser/releases/latest).
-2. Download **`Aether-Browser.exe`**.
+1. Go to [**GitHub Releases**](https://github.com/virkyu/aether-antidetect-browser/releases/latest).
+2. Download **`Aether-Browser.exe`** (standalone portable) or the installer.
 3. Run the downloaded executable — the application automatically initializes its local database and profile storage in your home directory (`~/.aether`).
 
 ---
@@ -139,8 +139,8 @@ Ensure you have the following installed on your system:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/virkyu/aether-antiderect-browser.git
-   cd aether-antiderect-browser
+   git clone https://github.com/virkyu/aether-antidetect-browser.git
+   cd aether-antidetect-browser
    ```
 
 2. **Install frontend dependencies:**
