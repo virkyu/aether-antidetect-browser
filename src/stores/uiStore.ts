@@ -1,6 +1,23 @@
 import { create } from 'zustand';
 
 export type Language = 'pl' | 'en';
+export type ThemeColor = 'default' | 'emerald' | 'blue' | 'purple' | 'amber' | 'rose' | 'cyan';
+
+export interface ThemeOption {
+  id: ThemeColor;
+  nameKey: 'themeDefault' | 'themeEmerald' | 'themeBlue' | 'themePurple' | 'themeCyan' | 'themeAmber' | 'themeRose';
+  color: string;
+}
+
+export const THEME_OPTIONS: ThemeOption[] = [
+  { id: 'default', nameKey: 'themeDefault', color: '#ffffff' },
+  { id: 'emerald', nameKey: 'themeEmerald', color: '#10b981' },
+  { id: 'blue', nameKey: 'themeBlue', color: '#3b82f6' },
+  { id: 'purple', nameKey: 'themePurple', color: '#a855f7' },
+  { id: 'cyan', nameKey: 'themeCyan', color: '#06b6d4' },
+  { id: 'amber', nameKey: 'themeAmber', color: '#f59e0b' },
+  { id: 'rose', nameKey: 'themeRose', color: '#f43f5e' },
+];
 
 interface UIState {
   zoomLevel: number;
@@ -10,11 +27,36 @@ interface UIState {
   resetZoom: () => void;
   language: Language;
   setLanguage: (lang: Language) => void;
+  themeColor: ThemeColor;
+  setThemeColor: (color: ThemeColor) => void;
 }
 
 const STORAGE_KEY = 'aether_ui_scale_v4';
 const LANG_STORAGE_KEY = 'aether_language';
+const THEME_STORAGE_KEY = 'aether_theme_color';
 export const PRESET_ZOOM_LEVELS = [90, 100, 110, 125, 140, 150];
+
+export function applyThemeColor(theme: ThemeColor): void {
+  const doc = document.documentElement;
+  doc.setAttribute('data-theme', theme);
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch (e) {
+    // Ignore storage errors
+  }
+}
+
+function getInitialTheme(): ThemeColor {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY) as ThemeColor;
+    if (['default', 'emerald', 'blue', 'purple', 'amber', 'rose', 'cyan'].includes(saved)) {
+      applyThemeColor(saved);
+      return saved;
+    }
+  } catch (e) {}
+  applyThemeColor('default');
+  return 'default';
+}
 
 function getInitialLanguage(): Language {
   try {
@@ -119,5 +161,12 @@ export const useUIStore = create<UIState>((set) => ({
       localStorage.setItem(LANG_STORAGE_KEY, lang);
     } catch (e) {}
     set({ language: lang });
+  },
+
+  themeColor: getInitialTheme(),
+
+  setThemeColor: (color: ThemeColor) => {
+    applyThemeColor(color);
+    set({ themeColor: color });
   },
 }));

@@ -13,6 +13,7 @@ import {
   ZoomOut,
   RotateCcw,
   Globe,
+  Palette,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -20,13 +21,13 @@ import { Badge } from '../ui/Badge';
 import { Switch } from '../ui/Switch';
 import { Select } from '../ui/Select';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/Card';
-import { useUIStore } from '../../stores/uiStore';
+import { useUIStore, THEME_OPTIONS } from '../../stores/uiStore';
 import { useUserStore } from '../../stores/userStore';
 import { useTranslation } from '../../lib/i18n';
 import aetherLogo from '../../assets/logo.png';
 
 export const SettingsView: React.FC = () => {
-  const { zoomLevel, setZoom, resetZoom } = useUIStore();
+  const { zoomLevel, setZoom, resetZoom, themeColor, setThemeColor } = useUIStore();
   const { t, language, setLanguage } = useTranslation();
   const { name, askOnStartup, setAskOnStartup, openNamePrompt, resetName } = useUserStore();
   const [chromiumPath, setChromiumPath] = useState(
@@ -213,6 +214,57 @@ export const SettingsView: React.FC = () => {
               {t.settings.resetZoom}
             </Button>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Theme Accent Color */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xs font-semibold flex items-center gap-2">
+              <Palette className="w-4 h-4 text-foreground" />
+              {t.settings.themeTitle}
+            </CardTitle>
+            <Badge variant="outline" className="text-xs font-mono flex items-center gap-1.5 px-2.5 py-0.5">
+              <span
+                className="w-2.5 h-2.5 rounded-full inline-block border border-black/20"
+                style={{ backgroundColor: THEME_OPTIONS.find((th) => th.id === themeColor)?.color || '#ffffff' }}
+              />
+              {t.settings[THEME_OPTIONS.find((th) => th.id === themeColor)?.nameKey || 'themeDefault']}
+            </Badge>
+          </div>
+          <CardDescription className="text-[11px]">
+            {t.settings.themeDesc}
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+            {THEME_OPTIONS.map((theme) => {
+              const isSelected = themeColor === theme.id;
+              return (
+                <button
+                  key={theme.id}
+                  onClick={() => setThemeColor(theme.id)}
+                  className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-xs font-medium cursor-pointer transition-all ${
+                    isSelected
+                      ? 'border-primary bg-muted/80 text-foreground ring-1 ring-primary shadow-xs font-semibold'
+                      : 'border-border bg-card/60 text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                  }`}
+                >
+                  <span
+                    className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center border border-white/20 shadow-xs"
+                    style={{ backgroundColor: theme.color }}
+                  >
+                    {isSelected && (
+                      <Check className={`w-2.5 h-2.5 ${theme.id === 'default' ? 'text-black' : 'text-white'} stroke-[3]`} />
+                    )}
+                  </span>
+                  <span className="truncate">{t.settings[theme.nameKey]}</span>
+                </button>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 

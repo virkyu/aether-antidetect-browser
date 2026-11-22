@@ -99,6 +99,48 @@
     --radius: 0.5rem;
   }
 
+  [data-theme="default"], :root[data-theme="default"] {
+    --primary: #ffffff;
+    --primary-foreground: #0a0a0a;
+    --ring: #e4e4e7;
+  }
+
+  [data-theme="emerald"], :root[data-theme="emerald"] {
+    --primary: #10b981;
+    --primary-foreground: #022c22;
+    --ring: #10b981;
+  }
+
+  [data-theme="blue"], :root[data-theme="blue"] {
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --ring: #3b82f6;
+  }
+
+  [data-theme="purple"], :root[data-theme="purple"] {
+    --primary: #a855f7;
+    --primary-foreground: #ffffff;
+    --ring: #a855f7;
+  }
+
+  [data-theme="cyan"], :root[data-theme="cyan"] {
+    --primary: #06b6d4;
+    --primary-foreground: #083344;
+    --ring: #06b6d4;
+  }
+
+  [data-theme="amber"], :root[data-theme="amber"] {
+    --primary: #f59e0b;
+    --primary-foreground: #451a03;
+    --ring: #f59e0b;
+  }
+
+  [data-theme="rose"], :root[data-theme="rose"] {
+    --primary: #f43f5e;
+    --primary-foreground: #ffffff;
+    --ring: #f43f5e;
+  }
+
   *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;

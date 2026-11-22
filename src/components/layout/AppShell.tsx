@@ -134,16 +134,16 @@ export const AppShell: React.FC<AppShellProps> = ({
           </Button>
         </div>
 
-        {/* Prominent White "Create Profile" button matching user image */}
+        {/* Prominent "Create Profile" button themed to active primary accent */}
         <div className="px-3 pb-3.5 pt-1 shrink-0">
           <button
             onClick={openCreateModal}
-            className="w-full h-10 rounded-lg bg-white hover:bg-zinc-100 active:scale-[0.98] text-black flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer select-none px-2"
+            className="w-full h-10 rounded-lg bg-primary hover:bg-primary/90 active:scale-[0.98] text-primary-foreground flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer select-none px-2 font-black"
             title="Create Profile"
           >
-            <PlusCircle className="w-5 h-5 text-black stroke-[2.5] shrink-0" />
+            <PlusCircle className="w-5 h-5 text-primary-foreground stroke-[2.5] shrink-0" />
             {!collapsed && (
-              <span className="truncate text-[15.5px] font-black tracking-tight leading-none text-black">
+              <span className="truncate text-[15.5px] font-black tracking-tight leading-none text-primary-foreground">
                 Create Profile
               </span>
             )}
