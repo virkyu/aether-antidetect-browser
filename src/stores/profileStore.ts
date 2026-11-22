@@ -26,6 +26,7 @@ interface ProfileState {
   updateProfile: (input: UpdateProfileInput) => Promise<Profile>;
   deleteProfile: (id: string) => Promise<void>;
   bulkDeleteProfiles: (ids: string[]) => Promise<void>;
+  cloneProfile: (id: string) => Promise<Profile | undefined>;
   startProfile: (id: string) => Promise<void>;
   stopProfile: (id: string) => Promise<void>;
   bulkStartProfiles: (ids: string[]) => Promise<void>;
@@ -147,6 +148,38 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       }));
     } catch (err: any) {
       set({ error: String(err) });
+      throw err;
+    }
+  },
+
+  cloneProfile: async (id: string) => {
+    const profile = get().profiles.find((p) => p.id === id);
+    if (!profile) return undefined;
+    set({ isLoading: true });
+    try {
+      const freshFp = generateRandomFingerprint(
+        profile.fingerprint.osType,
+        profile.fingerprint.browserType,
+        { w: profile.fingerprint.screenWidth, h: profile.fingerprint.screenHeight },
+        profile.fingerprint.timezone
+      );
+      const cloned = await invoke<Profile>('create_profile', {
+        input: {
+          name: `${profile.name} (Copy)`,
+          groupId: profile.groupId,
+          tags: [...profile.tags],
+          fingerprint: freshFp,
+          proxyId: profile.proxyId,
+          notes: profile.notes ? `Cloned from ${profile.name}. ${profile.notes}` : `Cloned from ${profile.name}`,
+        },
+      });
+      set((state) => ({
+        profiles: [cloned, ...state.profiles],
+        isLoading: false,
+      }));
+      return cloned;
+    } catch (err: any) {
+      set({ error: String(err), isLoading: false });
       throw err;
     }
   },

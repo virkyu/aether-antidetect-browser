@@ -4,6 +4,7 @@ import {
   Play,
   Square,
   Edit2,
+  Copy,
   Trash2,
   Star,
   Pin,
@@ -77,6 +78,7 @@ export const ProfileTable: React.FC = () => {
     bulkStopProfiles,
     deleteProfile,
     bulkDeleteProfiles,
+    cloneProfile,
     toggleFavorite,
     openCreateModal,
     openEditModal,
@@ -205,6 +207,15 @@ export const ProfileTable: React.FC = () => {
       await startProfile(id);
     } catch (err: any) {
       alert(`Błąd uruchamiania profilu:\n${err?.message || String(err)}`);
+    }
+  };
+
+  const handleClone = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await cloneProfile(id);
+    } catch (err: any) {
+      alert(`Błąd duplikowania profilu:\n${err?.message || String(err)}`);
     }
   };
 
@@ -694,16 +705,25 @@ export const ProfileTable: React.FC = () => {
                           size="icon"
                           onClick={() => openEditModal(profile)}
                           className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                          title="Edit Profile"
+                          title={t.profiles.actionEdit}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={(e) => handleClone(profile.id, e)}
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          title={t.profiles.actionClone}
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => deleteProfile(profile.id)}
                           className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          title="Delete Profile"
+                          title={t.profiles.actionDelete}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
@@ -983,7 +1003,7 @@ export const ProfileTable: React.FC = () => {
                             size="icon"
                             onClick={() => openEditModal(profile)}
                             className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            title="Edit Profile"
+                            title={t.profiles.actionEdit}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </Button>
@@ -991,9 +1011,19 @@ export const ProfileTable: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={(e) => handleClone(profile.id, e)}
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            title={t.profiles.actionClone}
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => deleteProfile(profile.id)}
                             className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            title="Delete Profile"
+                            title={t.profiles.actionDelete}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>

@@ -17,6 +17,9 @@ build/
 *.exe
 *.dll
 *.pdb
+*.zip
+*.msi
+*.tar.gz
 
 # Rust build artifacts
 target/

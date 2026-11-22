@@ -8,7 +8,6 @@ pub mod services;
 mod tests;
 
 use std::sync::Arc;
-use tauri::Manager;
 use browser::ProcessManager;
 use database::init_db;
 use services::ProfileService;

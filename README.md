@@ -10,6 +10,7 @@
 
 *Engineered with Rust, Tauri 2, React 19 & Tailwind CSS v4 for uncompromising speed, stealth, and total privacy.*
 
+[![CI](https://github.com/virkyu/aether-antidetect-browser/actions/workflows/ci.yml/badge.svg)](https://github.com/virkyu/aether-antidetect-browser/actions/workflows/ci.yml)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-1.85+-DEA584?style=for-the-badge&logo=rust&logoColor=black)](https://www.rust-lang.org/)
 [![React 19](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
@@ -66,6 +67,7 @@ Every profile operates inside a mathematically isolated sandbox with its own run
 - **Automatic In-Memory Proxy Auth**: Generates native on-the-fly Chrome extension auth modules without user intervention.
 
 ### 🏷️ Intuitive Tagging & Organization
+- **1-Click Profile Cloning**: Instantly duplicate any profile with preserved tags, proxy, and timezone while rolling a unique hardware fingerprint.
 - **Smart Tag Autocomplete**: Instant selection of existing tags across your workspace with one click.
 - **Interactive Tag Badges**: Visual colored badges with quick-remove controls.
 - **Batch Operations**: Bulk launch, bulk stop, bulk tag, and bulk delete profiles.
