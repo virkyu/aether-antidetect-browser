@@ -53,6 +53,7 @@ export interface Profile {
 export interface CreateProfileInput {
   name: string;
   groupId?: string;
+  groupName?: string;
   tags?: string[];
   fingerprint?: Partial<FingerprintConfig>;
   proxyId?: string;
@@ -66,6 +67,8 @@ export interface UpdateProfileInput extends Partial<CreateProfileInput> {
 export interface BulkCreateProfilesInput {
   count: number;
   namePrefix: string;
+  groupId?: string;
+  groupName?: string;
   osType: OsType;
   browserType: BrowserType;
   proxyIds?: string[];

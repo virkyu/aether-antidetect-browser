@@ -165,6 +165,7 @@ pub struct Profile {
 pub struct CreateProfileInput {
     pub name: String,
     pub group_id: Option<String>,
+    pub group_name: Option<String>,
     pub tags: Option<Vec<String>>,
     pub fingerprint: Option<FingerprintConfig>,
     pub proxy_id: Option<String>,
@@ -176,6 +177,7 @@ impl Default for CreateProfileInput {
         Self {
             name: "New Profile".to_string(),
             group_id: None,
+            group_name: None,
             tags: None,
             fingerprint: None,
             proxy_id: None,
@@ -190,6 +192,7 @@ pub struct UpdateProfileInput {
     pub id: String,
     pub name: Option<String>,
     pub group_id: Option<String>,
+    pub group_name: Option<String>,
     pub tags: Option<Vec<String>>,
     pub fingerprint: Option<FingerprintConfig>,
     pub proxy_id: Option<String>,
@@ -202,6 +205,7 @@ impl Default for UpdateProfileInput {
             id: String::new(),
             name: None,
             group_id: None,
+            group_name: None,
             tags: None,
             fingerprint: None,
             proxy_id: None,
@@ -215,6 +219,8 @@ impl Default for UpdateProfileInput {
 pub struct BulkCreateProfilesInput {
     pub count: usize,
     pub name_prefix: String,
+    pub group_id: Option<String>,
+    pub group_name: Option<String>,
     pub os_type: OsType,
     pub browser_type: BrowserType,
     pub proxy_ids: Option<Vec<String>>,

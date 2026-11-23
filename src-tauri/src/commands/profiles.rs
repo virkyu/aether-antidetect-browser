@@ -82,3 +82,13 @@ pub async fn toggle_pin(
 ) -> Result<Profile, String> {
     service.toggle_pin(&id).await
 }
+
+#[tauri::command]
+pub async fn move_profiles_to_group(
+    ids: Vec<String>,
+    group_id: Option<String>,
+    group_name: Option<String>,
+    service: State<'_, Arc<ProfileService>>,
+) -> Result<(), String> {
+    service.move_profiles_to_group(&ids, group_id, group_name).await
+}

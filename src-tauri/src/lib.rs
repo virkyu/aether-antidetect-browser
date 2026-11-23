@@ -50,6 +50,7 @@ pub fn run() {
             commands::stop_profile,
             commands::toggle_favorite,
             commands::toggle_pin,
+            commands::move_profiles_to_group,
             commands::get_proxies,
             commands::create_proxy,
             commands::bulk_import_proxies,

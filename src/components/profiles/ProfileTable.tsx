@@ -22,6 +22,9 @@ import {
   Clock,
   Activity,
   CheckCircle2,
+  Folder as FolderIcon,
+  Check,
+  Settings2,
 } from 'lucide-react';
 import gsap from 'gsap';
 import { Button } from '../ui/Button';
@@ -46,6 +49,8 @@ import {
 } from '../ui/Card';
 import { useProfileStore } from '../../stores/profileStore';
 import { useProxyStore } from '../../stores/proxyStore';
+import { useFolderStore, type Folder } from '../../stores/folderStore';
+import { FolderModal } from './FolderModal';
 import { cn, formatDuration, formatTimeAgo } from '../../lib/utils';
 import { generateRandomFingerprint } from '../../lib/fingerprintGenerator';
 import { useTranslation } from '../../lib/i18n';
@@ -78,6 +83,7 @@ export const ProfileTable: React.FC = () => {
     bulkStopProfiles,
     deleteProfile,
     bulkDeleteProfiles,
+    moveProfilesToFolder,
     cloneProfile,
     toggleFavorite,
     openCreateModal,
@@ -87,7 +93,34 @@ export const ProfileTable: React.FC = () => {
   } = useProfileStore();
 
   const { proxies } = useProxyStore();
+  const { folders, activeFolderId, setActiveFolderId, getFolderById } = useFolderStore();
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
+  const [rowFolderMenuId, setRowFolderMenuId] = useState<string | null>(null);
+  const [bulkFolderOpen, setBulkFolderOpen] = useState(false);
+
+  const getFolderColor = (groupId?: string) => {
+    if (!groupId) return '#71717a';
+    const f = folders.find((folder) => folder.id === groupId);
+    return f ? f.color : '#3b82f6';
+  };
+
+  const getFolderName = (groupId?: string, groupName?: string) => {
+    if (!groupId) return '';
+    const f = folders.find((folder) => folder.id === groupId);
+    return f ? f.name : groupName || 'Folder';
+  };
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setRowFolderMenuId(null);
+      setBulkFolderOpen(false);
+    };
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
 
   const proxyMap = useMemo(() => {
     const map = new Map();
@@ -153,6 +186,14 @@ export const ProfileTable: React.FC = () => {
         return false;
       }
 
+      if (activeFolderId) {
+        if (activeFolderId === 'unassigned') {
+          if (p.groupId) return false;
+        } else {
+          if (p.groupId !== activeFolderId) return false;
+        }
+      }
+
       return true;
     }).sort((a, b) => {
       // Pinned always first
@@ -180,7 +221,7 @@ export const ProfileTable: React.FC = () => {
       if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [profiles, searchQuery, statusFilter, tagFilter, sortField, sortOrder, proxyMap]);
+  }, [profiles, searchQuery, statusFilter, tagFilter, activeFolderId, sortField, sortOrder, proxyMap]);
 
   const allSelected =
     filteredProfiles.length > 0 &&
@@ -448,6 +489,105 @@ export const ProfileTable: React.FC = () => {
         </div>
       </div>
 
+      {/* Folder Navigation Strip */}
+      <div className="px-5 sm:px-6 py-2 border-b border-[#1a1a1a] bg-[#0c0c0c] flex items-center justify-between gap-2 overflow-x-auto shrink-0 select-none">
+        <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
+          <button
+            onClick={() => setActiveFolderId(null)}
+            className={cn(
+              "h-7 px-3 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shrink-0 border",
+              activeFolderId === null
+                ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                : "bg-[#141414] border-[#222222] text-zinc-400 hover:bg-[#1a1a1a] hover:text-white"
+            )}
+          >
+            <FolderIcon className="w-3.5 h-3.5" />
+            <span>{t.folders.all}</span>
+            <span
+              className={cn(
+                "text-[10px] px-1.5 py-0.2 rounded-full font-mono",
+                activeFolderId === null ? "bg-black/25 text-primary-foreground" : "bg-[#222222] text-zinc-400"
+              )}
+            >
+              {profiles.length}
+            </span>
+          </button>
+
+          {folders.map((f) => {
+            const count = profiles.filter((p) => p.groupId === f.id).length;
+            const isActive = activeFolderId === f.id;
+            return (
+              <div key={f.id} className="relative group shrink-0 flex items-center">
+                <button
+                  onClick={() => setActiveFolderId(f.id)}
+                  className={cn(
+                    "h-7 pl-2.5 pr-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer border",
+                    isActive
+                      ? "border-primary bg-muted/80 text-foreground ring-1 ring-primary font-semibold shadow-xs"
+                      : "bg-[#141414] border-[#222222] text-zinc-300 hover:bg-[#1a1a1a] hover:text-white"
+                  )}
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
+                    style={{ backgroundColor: f.color }}
+                  />
+                  <span className="truncate max-w-[130px]">{f.name}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] px-1.5 py-0.2 rounded-full font-mono",
+                      isActive ? "bg-background text-foreground" : "bg-[#222222] text-zinc-400"
+                    )}
+                  >
+                    {count}
+                  </span>
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingFolder(f);
+                      setIsFolderModalOpen(true);
+                    }}
+                    className="w-4 h-4 rounded hover:bg-white/10 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity ml-0.5 text-zinc-400 hover:text-white"
+                    title={t.folders.editFolder}
+                  >
+                    <Settings2 className="w-3 h-3" />
+                  </span>
+                </button>
+              </div>
+            );
+          })}
+
+          {profiles.some((p) => !p.groupId) && (
+            <button
+              onClick={() => setActiveFolderId('unassigned')}
+              className={cn(
+                "h-7 px-2.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shrink-0 border",
+                activeFolderId === 'unassigned'
+                  ? "border-primary bg-muted/80 text-foreground ring-1 ring-primary font-semibold shadow-xs"
+                  : "bg-[#141414] border-[#222222] text-zinc-400 hover:bg-[#1a1a1a] hover:text-white"
+              )}
+            >
+              <FolderIcon className="w-3.5 h-3.5 text-zinc-500" />
+              <span>{t.folders.unassigned}</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-[#222222] text-zinc-400">
+                {profiles.filter((p) => !p.groupId).length}
+              </span>
+            </button>
+          )}
+
+          <button
+            onClick={() => {
+              setEditingFolder(null);
+              setIsFolderModalOpen(true);
+            }}
+            className="h-7 px-2.5 rounded-md text-xs font-medium border border-dashed border-[#2a2a2a] text-zinc-400 hover:text-white hover:border-primary/50 hover:bg-[#161616] flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+            title={t.folders.newFolder}
+          >
+            <Plus className="w-3.5 h-3.5 text-primary" />
+            <span>{t.folders.newFolder}</span>
+          </button>
+        </div>
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="px-5 sm:px-6 py-2.5 border-b border-border bg-card/60 flex items-center justify-between gap-3 shrink-0 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap flex-1 min-w-0">
@@ -566,6 +706,51 @@ export const ProfileTable: React.FC = () => {
               <Square className="w-3.5 h-3.5" />
               Stop Selected
             </Button>
+
+            {/* Bulk Move to Folder */}
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBulkFolderOpen(!bulkFolderOpen)}
+                className="h-7 text-xs px-2.5 gap-1.5 font-medium"
+              >
+                <FolderIcon className="w-3.5 h-3.5 text-primary" />
+                <span>{t.folders.moveToFolder}</span>
+              </Button>
+              {bulkFolderOpen && (
+                <div className="absolute right-0 top-8 z-50 w-52 rounded-lg border border-border bg-popover p-1.5 shadow-2xl space-y-0.5">
+                  <div className="text-[10px] font-semibold text-muted-foreground uppercase px-2 py-1">
+                    {t.folders.assignFolder}
+                  </div>
+                  {folders.map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => {
+                        moveProfilesToFolder(selectedIds, f.id, f.name);
+                        setBulkFolderOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs hover:bg-muted text-foreground text-left cursor-pointer"
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: f.color }} />
+                      <span className="truncate flex-1">{f.name}</span>
+                    </button>
+                  ))}
+                  <div className="h-px bg-border my-1" />
+                  <button
+                    onClick={() => {
+                      moveProfilesToFolder(selectedIds, null, undefined);
+                      setBulkFolderOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs hover:bg-destructive/15 text-muted-foreground hover:text-destructive text-left cursor-pointer"
+                  >
+                    <span>✕</span>
+                    <span className="truncate">{t.folders.removeFromFolder}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             <Button
               variant="destructive"
               size="sm"
@@ -621,6 +806,19 @@ export const ProfileTable: React.FC = () => {
                             <span className="text-[10px] text-muted-foreground font-mono">
                               {profile.fingerprint.browserType} • {profile.fingerprint.osType}
                             </span>
+                            {profile.groupId && (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border max-w-fit mt-1"
+                                style={{
+                                  backgroundColor: `${getFolderColor(profile.groupId)}18`,
+                                  borderColor: `${getFolderColor(profile.groupId)}40`,
+                                  color: getFolderColor(profile.groupId),
+                                }}
+                              >
+                                <FolderIcon className="w-2.5 h-2.5" />
+                                <span className="truncate max-w-[120px]">{getFolderName(profile.groupId, profile.groupName)}</span>
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -770,19 +968,20 @@ export const ProfileTable: React.FC = () => {
                   />
                 </TableHead>
                 <TableHead className="w-8 px-1 text-center">★</TableHead>
-                <TableHead className="min-w-[200px]">Profile Name</TableHead>
-                <TableHead className="w-32">Status</TableHead>
-                <TableHead className="w-40">Tags</TableHead>
-                <TableHead className="w-48">Proxy</TableHead>
-                <TableHead className="w-40">Fingerprint</TableHead>
-                <TableHead className="w-32">Last Active</TableHead>
+                <TableHead className="min-w-[190px]">Profile Name</TableHead>
+                <TableHead className="w-28">{t.profiles.colFolder}</TableHead>
+                <TableHead className="w-28">Status</TableHead>
+                <TableHead className="w-36">Tags</TableHead>
+                <TableHead className="w-44">Proxy</TableHead>
+                <TableHead className="w-36">Fingerprint</TableHead>
+                <TableHead className="w-28">Last Active</TableHead>
                 <TableHead className="w-40 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProfiles.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="py-20 text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="py-20 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
                       <Search className="w-8 h-8 text-muted-foreground/60" />
                       <p className="text-sm font-semibold text-foreground">No profiles found</p>
@@ -866,6 +1065,73 @@ export const ProfileTable: React.FC = () => {
                               )}
                             </div>
                           </div>
+                        </div>
+                      </TableCell>
+
+                      {/* Folder Cell */}
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <div className="relative inline-block text-left">
+                          {profile.groupId ? (
+                            <button
+                              onClick={() => setRowFolderMenuId(rowFolderMenuId === profile.id ? null : profile.id)}
+                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border hover:brightness-125 transition-all cursor-pointer"
+                              style={{
+                                backgroundColor: `${getFolderColor(profile.groupId)}18`,
+                                borderColor: `${getFolderColor(profile.groupId)}40`,
+                                color: getFolderColor(profile.groupId),
+                              }}
+                              title={t.folders.assignFolder}
+                            >
+                              <FolderIcon className="w-3 h-3 shrink-0" />
+                              <span className="truncate max-w-[95px]">{getFolderName(profile.groupId, profile.groupName)}</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setRowFolderMenuId(rowFolderMenuId === profile.id ? null : profile.id)}
+                              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/60 px-2 py-0.5 rounded border border-dashed border-border/80 transition-colors cursor-pointer opacity-70 group-hover:opacity-100"
+                              title={t.folders.assignFolder}
+                            >
+                              <Plus className="w-2.5 h-2.5" />
+                              <span>{t.folders.folderLabel}</span>
+                            </button>
+                          )}
+
+                          {rowFolderMenuId === profile.id && (
+                            <div className="absolute left-0 top-7 z-50 w-48 rounded-lg border border-border bg-popover p-1 shadow-2xl space-y-0.5">
+                              <div className="text-[10px] font-semibold text-muted-foreground uppercase px-2 py-1">
+                                {t.folders.moveToFolder}
+                              </div>
+                              {folders.map((f) => (
+                                <button
+                                  key={f.id}
+                                  onClick={() => {
+                                    moveProfilesToFolder([profile.id], f.id, f.name);
+                                    setRowFolderMenuId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs hover:bg-muted text-foreground text-left cursor-pointer"
+                                >
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: f.color }} />
+                                  <span className="truncate flex-1">{f.name}</span>
+                                  {profile.groupId === f.id && <Check className="w-3.5 h-3.5 text-primary ml-auto" />}
+                                </button>
+                              ))}
+                              {profile.groupId && (
+                                <>
+                                  <div className="h-px bg-border my-1" />
+                                  <button
+                                    onClick={() => {
+                                      moveProfilesToFolder([profile.id], null, undefined);
+                                      setRowFolderMenuId(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs hover:bg-destructive/15 text-destructive text-left cursor-pointer"
+                                  >
+                                    <span>✕</span>
+                                    <span>{t.folders.removeFromFolder}</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
 
@@ -1047,6 +1313,16 @@ export const ProfileTable: React.FC = () => {
           </Table>
         </div>
       )}
+
+      {/* Folder Creation & Edit Modal */}
+      <FolderModal
+        isOpen={isFolderModalOpen}
+        onClose={() => {
+          setIsFolderModalOpen(false);
+          setEditingFolder(null);
+        }}
+        folderToEdit={editingFolder}
+      />
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Dices, Monitor, Globe, Cpu, Zap, X, Plus } from 'lucide-react';
+import { Dices, Monitor, Globe, Cpu, Zap, X, Plus, Folder as FolderIcon, Check } from 'lucide-react';
 import gsap from 'gsap';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/Tabs';
 import { useTranslation } from '../../lib/i18n';
 import { useProfileStore } from '../../stores/profileStore';
 import { useProxyStore } from '../../stores/proxyStore';
+import { useFolderStore, FOLDER_COLOR_PRESETS } from '../../stores/folderStore';
 import { cn } from '../../lib/utils';
 import {
   generateRandomFingerprint,
@@ -30,6 +31,7 @@ import type {
 export const ProfileModal: React.FC = () => {
   const { profiles, activeModal, editingProfile, closeModal, createProfile, updateProfile } = useProfileStore();
   const { proxies, createProxy } = useProxyStore();
+  const { folders, createFolder, activeFolderId } = useFolderStore();
   const { t } = useTranslation();
 
   const isOpen = activeModal === 'create' || activeModal === 'edit';
@@ -39,6 +41,10 @@ export const ProfileModal: React.FC = () => {
 
   // Form state
   const [name, setName] = useState('');
+  const [groupId, setGroupId] = useState<string>('');
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderColor, setNewFolderColor] = useState(FOLDER_COLOR_PRESETS[0].hex);
   const [tags, setTags] = useState('');
   const [proxyId, setProxyId] = useState<string>('');
   const [notes, setNotes] = useState('');
@@ -130,8 +136,11 @@ export const ProfileModal: React.FC = () => {
 
   useEffect(() => {
     setSubmitError(null);
+    setIsCreatingFolder(false);
+    setNewFolderName('');
     if (isEditing && editingProfile) {
       setName(editingProfile.name);
+      setGroupId(editingProfile.groupId || '');
       setTags(editingProfile.tags.join(', '));
       setProxyId(editingProfile.proxyId || '');
       setNotes(editingProfile.notes || '');
@@ -151,6 +160,7 @@ export const ProfileModal: React.FC = () => {
     } else {
       const defaultName = `Profile ${Math.floor(1000 + Math.random() * 9000)}`;
       setName(defaultName);
+      setGroupId(activeFolderId && activeFolderId !== 'unassigned' ? activeFolderId : '');
       setTags('work');
       setProxyId('');
       setNotes('');
@@ -230,10 +240,15 @@ export const ProfileModal: React.FC = () => {
         doNotTrack: false,
       };
 
+      const selectedFolder = folders.find((f) => f.id === groupId);
+      const groupName = selectedFolder ? selectedFolder.name : undefined;
+
       if (isEditing && editingProfile) {
         const input: UpdateProfileInput = {
           id: editingProfile.id,
           name,
+          groupId: groupId || '',
+          groupName: groupName || '',
           tags: tagArray,
           notes: notes || undefined,
           proxyId: proxyId || undefined,
@@ -244,6 +259,8 @@ export const ProfileModal: React.FC = () => {
       } else {
         const input: CreateProfileInput = {
           name,
+          groupId: groupId || undefined,
+          groupName: groupName || undefined,
           tags: tagArray,
           notes: notes || undefined,
           proxyId: proxyId || undefined,
@@ -348,6 +365,109 @@ export const ProfileModal: React.FC = () => {
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t.modal.profileNamePlaceholder}
               />
+            </div>
+
+            {/* Folder / Group Selection */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <FolderIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                  {t.folders.folderLabel}
+                </label>
+                {!isCreatingFolder && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCreatingFolder(true)}
+                    className="text-[11px] text-primary hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    {t.folders.newFolder}
+                  </button>
+                )}
+              </div>
+
+              {isCreatingFolder ? (
+                <div className="p-3 rounded-lg border border-border bg-card/70 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      autoFocus
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      placeholder={t.folders.folderPlaceholder}
+                      className="h-8 text-xs flex-1"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        if (newFolderName.trim()) {
+                          const created = createFolder(newFolderName.trim(), newFolderColor);
+                          setGroupId(created.id);
+                          setNewFolderName('');
+                          setIsCreatingFolder(false);
+                        }
+                      }}
+                      className="h-8 text-xs px-3"
+                    >
+                      {t.folders.createFolder}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsCreatingFolder(false);
+                        setNewFolderName('');
+                      }}
+                      className="h-8 text-xs"
+                    >
+                      Anuluj
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">Kolor:</span>
+                    <div className="flex items-center gap-1.5">
+                      {FOLDER_COLOR_PRESETS.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setNewFolderColor(p.hex)}
+                          className={`w-5 h-5 rounded-full flex items-center justify-center border cursor-pointer ${
+                            newFolderColor === p.hex ? 'ring-2 ring-primary border-white/50 scale-110' : 'border-white/20'
+                          }`}
+                          style={{ backgroundColor: p.hex }}
+                        >
+                          {newFolderColor === p.hex && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Select
+                      value={groupId}
+                      onChange={(val) => setGroupId(val)}
+                      options={[
+                        { value: '', label: `📁 ${t.folders.noFolder}` },
+                        ...folders.map((f) => ({
+                          value: f.id,
+                          label: `📂 ${f.name}`,
+                        })),
+                      ]}
+                      triggerClassName="h-8.5 text-xs"
+                    />
+                  </div>
+                  {groupId && (
+                    <span
+                      className="w-3.5 h-3.5 rounded-full shrink-0 border border-white/20 shadow-xs"
+                      style={{ backgroundColor: folders.find((f) => f.id === groupId)?.color || '#71717a' }}
+                      title={folders.find((f) => f.id === groupId)?.name}
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

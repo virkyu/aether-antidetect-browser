@@ -20,11 +20,13 @@ import {
   Key,
   MapPin,
   Sparkles,
+  Folder as FolderIcon,
 } from 'lucide-react';
 import gsap from 'gsap';
 import { Button } from '../ui/Button';
 import { useProfileStore } from '../../stores/profileStore';
 import { useProxyStore } from '../../stores/proxyStore';
+import { useFolderStore } from '../../stores/folderStore';
 import { generateRandomFingerprint } from '../../lib/fingerprintGenerator';
 import type { Profile } from '../../types/profile';
 
@@ -44,6 +46,8 @@ export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile })
   } = useProfileStore();
 
   const { proxies } = useProxyStore();
+  const { folders } = useFolderStore();
+  const folder = profile.groupId ? folders.find((f) => f.id === profile.groupId) : null;
   const proxy = profile.proxyId ? proxies.find((p) => p.id === profile.proxyId) : null;
 
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -138,6 +142,22 @@ ${profile.fingerprint.userAgent}`;
                 <Clock className="w-3.5 h-3.5 text-zinc-500" />
                 Modyfikacja: {formattedDate}
               </span>
+              {folder && (
+                <>
+                  <span className="text-zinc-700">•</span>
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold border"
+                    style={{
+                      backgroundColor: `${folder.color}18`,
+                      borderColor: `${folder.color}40`,
+                      color: folder.color,
+                    }}
+                  >
+                    <FolderIcon className="w-3 h-3" />
+                    <span>{folder.name}</span>
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

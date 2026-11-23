@@ -123,7 +123,7 @@ impl ProfileService {
         .bind(&id)
         .bind(&input.name)
         .bind(&input.group_id)
-        .bind(None::<String>)
+        .bind(&input.group_name)
         .bind(&tags_json)
         .bind(&fp_json)
         .bind(&input.proxy_id)
@@ -139,7 +139,7 @@ impl ProfileService {
             id,
             name: input.name,
             group_id: input.group_id,
-            group_name: None,
+            group_name: input.group_name,
             tags,
             status: ProfileStatus::Idle,
             fingerprint: fp,
@@ -180,7 +180,8 @@ impl ProfileService {
 
             let profile = self.create_profile(CreateProfileInput {
                 name,
-                group_id: None,
+                group_id: input.group_id.clone(),
+                group_name: input.group_name.clone(),
                 tags: Some(tags.clone()),
                 fingerprint: Some(fp),
                 proxy_id,
@@ -199,6 +200,36 @@ impl ProfileService {
         if let Some(ref name) = input.name {
             sqlx::query("UPDATE profiles SET name = ?, updated_at = ? WHERE id = ?")
                 .bind(name)
+                .bind(&now)
+                .bind(&input.id)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+
+        if let Some(ref group_id) = input.group_id {
+            let gid = if group_id.trim().is_empty() {
+                None
+            } else {
+                Some(group_id.clone())
+            };
+            sqlx::query("UPDATE profiles SET group_id = ?, updated_at = ? WHERE id = ?")
+                .bind(&gid)
+                .bind(&now)
+                .bind(&input.id)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+
+        if let Some(ref group_name) = input.group_name {
+            let gname = if group_name.trim().is_empty() {
+                None
+            } else {
+                Some(group_name.clone())
+            };
+            sqlx::query("UPDATE profiles SET group_name = ?, updated_at = ? WHERE id = ?")
+                .bind(&gname)
                 .bind(&now)
                 .bind(&input.id)
                 .execute(&self.pool)
@@ -251,6 +282,29 @@ impl ProfileService {
             .into_iter()
             .find(|p| p.id == input.id)
             .ok_or_else(|| "Profile not found after update".to_string())
+    }
+
+    pub async fn move_profiles_to_group(
+        &self,
+        ids: &[String],
+        group_id: Option<String>,
+        group_name: Option<String>,
+    ) -> Result<(), String> {
+        let now = Utc::now().to_rfc3339();
+        let gid = group_id.and_then(|g| if g.trim().is_empty() { None } else { Some(g) });
+        let gname = group_name.and_then(|g| if g.trim().is_empty() { None } else { Some(g) });
+
+        for id in ids {
+            sqlx::query("UPDATE profiles SET group_id = ?, group_name = ?, updated_at = ? WHERE id = ?")
+                .bind(&gid)
+                .bind(&gname)
+                .bind(&now)
+                .bind(id)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(())
     }
 
     pub async fn delete_profile(&self, id: &str) -> Result<(), String> {

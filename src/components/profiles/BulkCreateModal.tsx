@@ -9,18 +9,21 @@ import { Badge } from '../ui/Badge';
 import { useTranslation } from '../../lib/i18n';
 import { useProfileStore } from '../../stores/profileStore';
 import { useProxyStore } from '../../stores/proxyStore';
+import { useFolderStore } from '../../stores/folderStore';
 import { cn } from '../../lib/utils';
 import type { OsType, BrowserType } from '../../types/profile';
 
 export const BulkCreateModal: React.FC = () => {
   const { profiles, activeModal, closeModal, bulkCreateProfiles } = useProfileStore();
   const { proxies } = useProxyStore();
+  const { folders, activeFolderId } = useFolderStore();
   const { t } = useTranslation();
 
   const isOpen = activeModal === 'bulk_create';
 
   const [count, setCount] = useState(5);
   const [namePrefix, setNamePrefix] = useState('Profile');
+  const [groupId, setGroupId] = useState<string>(activeFolderId && activeFolderId !== 'unassigned' ? activeFolderId : '');
   const [osType, setOsType] = useState<OsType>('windows');
   const [browserType, setBrowserType] = useState<BrowserType>('brave');
   const [tags, setTags] = useState('fleet');
@@ -72,10 +75,13 @@ export const BulkCreateModal: React.FC = () => {
         .filter(Boolean);
 
       const proxyIds = useProxies && proxies.length > 0 ? proxies.map((p) => p.id) : undefined;
+      const matchedFolder = folders.find((f) => f.id === groupId);
 
       await bulkCreateProfiles({
         count,
         namePrefix,
+        groupId: groupId || undefined,
+        groupName: matchedFolder ? matchedFolder.name : undefined,
         osType,
         browserType,
         tags: tagArray,
@@ -139,6 +145,21 @@ export const BulkCreateModal: React.FC = () => {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
+            <label className="block text-xs font-medium text-foreground mb-1.5">{t.folders.folderLabel}</label>
+            <Select
+              value={groupId}
+              onChange={(val) => setGroupId(val)}
+              options={[
+                { value: '', label: `📁 ${t.folders.noFolder}` },
+                ...folders.map((f) => ({
+                  value: f.id,
+                  label: `📂 ${f.name}`,
+                })),
+              ]}
+            />
+          </div>
+
+          <div>
             <label className="block text-xs font-medium text-foreground mb-1.5">Base OS Target</label>
             <Select
               value={osType}
@@ -150,19 +171,19 @@ export const BulkCreateModal: React.FC = () => {
               ]}
             />
           </div>
+        </div>
 
-          <div>
-            <label className="block text-xs font-medium text-foreground mb-1.5">Browser Engine</label>
-            <Select
-              value={browserType}
-              onChange={(val) => setBrowserType(val as BrowserType)}
-              options={[
-                { value: 'brave', label: 'Brave Browser', badge: 'Active' },
-                { value: 'chrome', label: 'Google Chrome' },
-                { value: 'edge', label: 'Microsoft Edge' },
-              ]}
-            />
-          </div>
+        <div>
+          <label className="block text-xs font-medium text-foreground mb-1.5">Browser Engine</label>
+          <Select
+            value={browserType}
+            onChange={(val) => setBrowserType(val as BrowserType)}
+            options={[
+              { value: 'brave', label: 'Brave Browser', badge: 'Active' },
+              { value: 'chrome', label: 'Google Chrome' },
+              { value: 'edge', label: 'Microsoft Edge' },
+            ]}
+          />
         </div>
 
         <div className="space-y-2">

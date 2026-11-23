@@ -26,6 +26,7 @@ interface ProfileState {
   updateProfile: (input: UpdateProfileInput) => Promise<Profile>;
   deleteProfile: (id: string) => Promise<void>;
   bulkDeleteProfiles: (ids: string[]) => Promise<void>;
+  moveProfilesToFolder: (ids: string[], folderId: string | null, folderName?: string) => Promise<void>;
   cloneProfile: (id: string) => Promise<Profile | undefined>;
   startProfile: (id: string) => Promise<void>;
   stopProfile: (id: string) => Promise<void>;
@@ -152,6 +153,54 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     }
   },
 
+  moveProfilesToFolder: async (ids: string[], folderId: string | null, folderName?: string) => {
+    if (!ids || ids.length === 0) return;
+    try {
+      await invoke('move_profiles_to_group', {
+        ids,
+        groupId: folderId || null,
+        groupName: folderName || null,
+      });
+      set((state) => ({
+        profiles: state.profiles.map((p) => {
+          if (ids.includes(p.id)) {
+            return {
+              ...p,
+              groupId: folderId || undefined,
+              groupName: folderName || undefined,
+            };
+          }
+          return p;
+        }),
+      }));
+    } catch (err: any) {
+      console.warn('move_profiles_to_group invoke fallback:', err);
+      for (const id of ids) {
+        try {
+          await invoke('update_profile', {
+            input: {
+              id,
+              groupId: folderId || '',
+              groupName: folderName || '',
+            },
+          });
+        } catch (e) {}
+      }
+      set((state) => ({
+        profiles: state.profiles.map((p) => {
+          if (ids.includes(p.id)) {
+            return {
+              ...p,
+              groupId: folderId || undefined,
+              groupName: folderName || undefined,
+            };
+          }
+          return p;
+        }),
+      }));
+    }
+  },
+
   cloneProfile: async (id: string) => {
     const profile = get().profiles.find((p) => p.id === id);
     if (!profile) return undefined;
@@ -167,6 +216,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
         input: {
           name: `${profile.name} (Copy)`,
           groupId: profile.groupId,
+          groupName: profile.groupName,
           tags: [...profile.tags],
           fingerprint: freshFp,
           proxyId: profile.proxyId,
