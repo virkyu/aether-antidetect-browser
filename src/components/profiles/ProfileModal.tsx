@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Dices, Monitor, Globe, Cpu, Zap, X, Plus, Folder as FolderIcon, Check } from 'lucide-react';
+import { Dices, Monitor, Globe, Cpu, Zap, X, Plus, Folder as FolderIcon, Check, Pipette } from 'lucide-react';
 import gsap from 'gsap';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/Tabs';
 import { useTranslation } from '../../lib/i18n';
 import { useProfileStore } from '../../stores/profileStore';
 import { useProxyStore } from '../../stores/proxyStore';
-import { useFolderStore, FOLDER_COLOR_PRESETS } from '../../stores/folderStore';
+import { useFolderStore, FOLDER_COLOR_PRESETS, FOLDER_ICON_PRESETS } from '../../stores/folderStore';
 import { cn } from '../../lib/utils';
 import {
   generateRandomFingerprint,
@@ -45,6 +45,7 @@ export const ProfileModal: React.FC = () => {
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderColor, setNewFolderColor] = useState(FOLDER_COLOR_PRESETS[0].hex);
+  const [newFolderIcon, setNewFolderIcon] = useState('📁');
   const [tags, setTags] = useState('');
   const [proxyId, setProxyId] = useState<string>('');
   const [notes, setNotes] = useState('');
@@ -389,6 +390,7 @@ export const ProfileModal: React.FC = () => {
               {isCreatingFolder ? (
                 <div className="p-3 rounded-lg border border-border bg-card/70 space-y-2.5">
                   <div className="flex items-center gap-2">
+                    <span className="text-base shrink-0">{newFolderIcon}</span>
                     <Input
                       autoFocus
                       value={newFolderName}
@@ -401,13 +403,13 @@ export const ProfileModal: React.FC = () => {
                       size="sm"
                       onClick={() => {
                         if (newFolderName.trim()) {
-                          const created = createFolder(newFolderName.trim(), newFolderColor);
+                          const created = createFolder(newFolderName.trim(), newFolderColor, newFolderIcon);
                           setGroupId(created.id);
                           setNewFolderName('');
                           setIsCreatingFolder(false);
                         }
                       }}
-                      className="h-8 text-xs px-3"
+                      className="h-8 text-xs px-3 font-semibold"
                     >
                       {t.folders.createFolder}
                     </Button>
@@ -424,22 +426,55 @@ export const ProfileModal: React.FC = () => {
                       Anuluj
                     </Button>
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  {/* Icon presets */}
+                  <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+                    {FOLDER_ICON_PRESETS.slice(0, 10).map((ic) => (
+                      <button
+                        key={ic}
+                        type="button"
+                        onClick={() => setNewFolderIcon(ic)}
+                        className={`w-6 h-6 rounded flex items-center justify-center text-xs cursor-pointer border ${
+                          newFolderIcon === ic ? 'border-primary bg-primary/20 scale-105' : 'border-border/50 hover:bg-muted'
+                        }`}
+                      >
+                        {ic}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Color presets and Custom picker */}
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[11px] text-muted-foreground">Kolor:</span>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {FOLDER_COLOR_PRESETS.map((p) => (
                         <button
                           key={p.id}
                           type="button"
                           onClick={() => setNewFolderColor(p.hex)}
                           className={`w-5 h-5 rounded-full flex items-center justify-center border cursor-pointer ${
-                            newFolderColor === p.hex ? 'ring-2 ring-primary border-white/50 scale-110' : 'border-white/20'
+                            newFolderColor.toLowerCase() === p.hex.toLowerCase() ? 'ring-2 ring-primary border-white/60 scale-110 shadow-xs' : 'border-white/20'
                           }`}
                           style={{ backgroundColor: p.hex }}
                         >
-                          {newFolderColor === p.hex && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
+                          {newFolderColor.toLowerCase() === p.hex.toLowerCase() && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
                         </button>
                       ))}
+
+                      {/* Custom color picker */}
+                      <label
+                        className="relative w-5 h-5 rounded-full border border-white/40 flex items-center justify-center cursor-pointer overflow-hidden"
+                        title="Wybierz dowolny kolor"
+                        style={{ backgroundColor: newFolderColor }}
+                      >
+                        <Pipette className="w-2.5 h-2.5 text-white mix-blend-difference" />
+                        <input
+                          type="color"
+                          value={newFolderColor}
+                          onChange={(e) => setNewFolderColor(e.target.value)}
+                          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -453,7 +488,7 @@ export const ProfileModal: React.FC = () => {
                         { value: '', label: `📁 ${t.folders.noFolder}` },
                         ...folders.map((f) => ({
                           value: f.id,
-                          label: `📂 ${f.name}`,
+                          label: `${f.icon || '📁'} ${f.name}`,
                         })),
                       ]}
                       triggerClassName="h-8.5 text-xs"

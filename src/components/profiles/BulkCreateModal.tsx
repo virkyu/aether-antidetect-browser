@@ -153,7 +153,7 @@ export const BulkCreateModal: React.FC = () => {
                 { value: '', label: `📁 ${t.folders.noFolder}` },
                 ...folders.map((f) => ({
                   value: f.id,
-                  label: `📂 ${f.name}`,
+                  label: `${f.icon || '📁'} ${f.name}`,
                 })),
               ]}
             />

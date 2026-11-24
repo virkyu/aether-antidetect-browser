@@ -146,14 +146,15 @@ ${profile.fingerprint.userAgent}`;
                 <>
                   <span className="text-zinc-700">•</span>
                   <span
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold border"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold border shadow-xs"
                     style={{
                       backgroundColor: `${folder.color}18`,
-                      borderColor: `${folder.color}40`,
+                      borderColor: `${folder.color}50`,
                       color: folder.color,
+                      boxShadow: `0 0 10px ${folder.color}25`,
                     }}
                   >
-                    <FolderIcon className="w-3 h-3" />
+                    <span className="text-xs">{folder.icon || '📁'}</span>
                     <span>{folder.name}</span>
                   </span>
                 </>
