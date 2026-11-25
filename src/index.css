@@ -187,3 +187,157 @@
     background: var(--muted-foreground);
   }
 }
+
+/* ============================================================================
+   Tailwind v4 Animation System (replaces missing tailwindcss-animate)
+   Uses individual CSS `scale` + `opacity` + `transform: translate3d` so
+   centered Radix Dialogs (`translate-x-[-50%] translate-y-[-50%]`) never jump.
+   ============================================================================ */
+
+@keyframes aether-enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    scale: var(--tw-enter-scale, 1);
+    transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0);
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes aether-exit {
+  from {
+    opacity: 1;
+    scale: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: var(--tw-exit-opacity, 1);
+    scale: var(--tw-exit-scale, 1);
+    transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0);
+  }
+}
+
+@keyframes aether-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes aether-pulse-glow {
+  0%, 100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes aether-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes aether-tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-in {
+  animation-name: aether-enter;
+  animation-duration: var(--tw-duration, 200ms);
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+@utility animate-out {
+  animation-name: aether-exit;
+  animation-duration: var(--tw-duration, 150ms);
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+@utility fade-in-0 {
+  --tw-enter-opacity: 0;
+}
+
+@utility fade-out-0 {
+  --tw-exit-opacity: 0;
+}
+
+@utility zoom-in-95 {
+  --tw-enter-scale: 0.95;
+}
+
+@utility zoom-out-95 {
+  --tw-exit-scale: 0.95;
+}
+
+@utility slide-in-from-top-2 {
+  --tw-enter-translate-y: -0.5rem;
+}
+
+@utility slide-in-from-bottom-2 {
+  --tw-enter-translate-y: 0.5rem;
+}
+
+@utility slide-in-from-left-2 {
+  --tw-enter-translate-x: -0.5rem;
+}
+
+@utility slide-in-from-right-2 {
+  --tw-enter-translate-x: 0.5rem;
+}
+
+@utility slide-out-to-top-2 {
+  --tw-exit-translate-y: -0.5rem;
+}
+
+@utility slide-out-to-bottom-2 {
+  --tw-exit-translate-y: 0.5rem;
+}
+
+@utility slide-out-to-left-2 {
+  --tw-exit-translate-x: -0.5rem;
+}
+
+@utility slide-out-to-right-2 {
+  --tw-exit-translate-x: 0.5rem;
+}
+
+@utility animate-float {
+  animation: aether-float 3.6s ease-in-out infinite;
+}
+
+@utility animate-pulse-glow {
+  animation: aether-pulse-glow 2.2s ease-in-out infinite;
+}
+
+@utility animate-tab-in {
+  animation: aether-tab-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

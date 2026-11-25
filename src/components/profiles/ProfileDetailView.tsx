@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ArrowLeft,
   Star,
@@ -63,9 +63,35 @@ export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile })
     }, 1800);
   };
 
+  const detailContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = detailContainerRef.current;
+    if (!el) return;
+    const sections = el.querySelectorAll(':scope > div');
+    if (sections.length === 0) return;
+    gsap.killTweensOf(sections);
+    gsap.fromTo(
+      sections,
+      { opacity: 0, y: 12 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.28,
+        stagger: 0.045,
+        ease: 'power3.out',
+        clearProps: 'transform,opacity',
+      }
+    );
+  }, [profile.id]);
+
   const handleRandomize = async (e: React.MouseEvent) => {
-    const btn = e.currentTarget;
-    gsap.to(btn, { rotation: '+=360', duration: 0.45, ease: 'back.out(2)' });
+    const icon = e.currentTarget.querySelector('svg') || e.currentTarget;
+    gsap.fromTo(
+      icon,
+      { rotation: 0 },
+      { rotation: 360, duration: 0.45, ease: 'back.out(1.7)', overwrite: true, clearProps: 'transform' }
+    );
     const freshFp = generateRandomFingerprint(
       profile.fingerprint.osType,
       profile.fingerprint.browserType,
@@ -97,7 +123,7 @@ Rdzenie CPU: ${profile.fingerprint.hardwareConcurrency} Cores | RAM: ${profile.f
 ${profile.fingerprint.userAgent}`;
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#0a0a0a] text-[#f4f4f5] p-5 sm:p-7 space-y-5 select-none font-sans">
+    <div ref={detailContainerRef} className="flex-1 overflow-y-auto bg-[#0a0a0a] text-[#f4f4f5] p-5 sm:p-7 space-y-5 select-none font-sans">
       {/* Top Header: Back Arrow, Profile Name, Star, Meta details, Edit & Delete */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#1e1e1e]">
         <div className="flex items-start gap-3.5 min-w-0">

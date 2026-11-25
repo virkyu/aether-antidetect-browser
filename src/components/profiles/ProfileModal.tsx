@@ -106,18 +106,25 @@ export const ProfileModal: React.FC = () => {
 
   const handleRandomizeFingerprint = () => {
     if (diceRef.current) {
-      gsap.to(diceRef.current, {
-        rotation: '+=360',
-        duration: 0.45,
-        ease: 'back.out(2)',
-      });
+      gsap.fromTo(
+        diceRef.current,
+        { rotation: 0 },
+        {
+          rotation: 360,
+          duration: 0.45,
+          ease: 'back.out(1.7)',
+          overwrite: true,
+          clearProps: 'transform',
+        }
+      );
     }
 
     if (previewCardRef.current) {
+      gsap.killTweensOf(previewCardRef.current);
       gsap.fromTo(
         previewCardRef.current,
-        { scale: 0.98 },
-        { scale: 1, duration: 0.3, ease: 'power2.out' }
+        { scale: 0.975, opacity: 0.85 },
+        { scale: 1, opacity: 1, duration: 0.3, ease: 'power2.out', clearProps: 'transform,opacity' }
       );
     }
 

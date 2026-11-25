@@ -151,14 +151,39 @@ export const ProfileTable: React.FC = () => {
 
   // Entrance animations
   useEffect(() => {
-    if (emptyHeroRef.current) {
+    const el = emptyHeroRef.current;
+    if (el) {
+      gsap.killTweensOf(el);
       gsap.fromTo(
-        emptyHeroRef.current,
-        { opacity: 0, y: 15 },
-        { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }
+        el,
+        { opacity: 0, y: 16, scale: 0.98 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: 'power3.out', clearProps: 'transform,opacity' }
       );
     }
   }, [profiles.length]);
+
+  // Staggered list / bento grid entrance on viewMode or folder change
+  useEffect(() => {
+    const container = tableContainerRef.current;
+    if (!container) return;
+    const items = container.querySelectorAll('.aether-stagger-item');
+    if (items.length === 0) return;
+
+    const targetItems = Array.from(items).slice(0, 24);
+    gsap.killTweensOf(targetItems);
+    gsap.fromTo(
+      targetItems,
+      { opacity: 0, y: 8 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.24,
+        stagger: 0.02,
+        ease: 'power2.out',
+        clearProps: 'transform,opacity',
+      }
+    );
+  }, [viewMode, activeFolderId]);
 
   // Filtered and sorted profiles
   const filteredProfiles = useMemo(() => {
@@ -235,8 +260,12 @@ export const ProfileTable: React.FC = () => {
 
   const handleQuickRandomize = async (profile: Profile, e: React.MouseEvent) => {
     e.stopPropagation();
-    const btn = e.currentTarget;
-    gsap.to(btn, { rotation: '+=360', duration: 0.45, ease: 'back.out(2)' });
+    const icon = e.currentTarget.querySelector('svg') || e.currentTarget;
+    gsap.fromTo(
+      icon,
+      { rotation: 0 },
+      { rotation: 360, duration: 0.45, ease: 'back.out(1.7)', overwrite: true, clearProps: 'transform' }
+    );
     const freshFp = generateRandomFingerprint(
       profile.fingerprint.osType,
       profile.fingerprint.browserType,
@@ -690,7 +719,7 @@ export const ProfileTable: React.FC = () => {
 
       {/* Bulk Action Banner */}
       {selectedIds.length > 0 && (
-        <div className="px-5 sm:px-6 py-2 bg-muted/70 border-b border-border flex items-center justify-between shrink-0 flex-wrap gap-2">
+        <div className="px-5 sm:px-6 py-2 bg-muted/70 border-b border-border flex items-center justify-between shrink-0 flex-wrap gap-2 animate-in fade-in-0 slide-in-from-top-2">
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-foreground">
               {selectedIds.length} {selectedIds.length === 1 ? 'profile' : 'profiles'} selected
@@ -737,7 +766,7 @@ export const ProfileTable: React.FC = () => {
                 <span>{t.folders.moveToFolder}</span>
               </Button>
               {bulkFolderOpen && (
-                <div className="absolute right-0 top-8 z-50 w-52 rounded-lg border border-border bg-popover p-1.5 shadow-2xl space-y-0.5">
+                <div className="absolute right-0 top-8 z-50 w-52 rounded-lg border border-border bg-popover p-1.5 shadow-2xl space-y-0.5 animate-in fade-in-0 zoom-in-95">
                   <div className="text-[10px] font-semibold text-muted-foreground uppercase px-2 py-1">
                     {t.folders.assignFolder}
                   </div>
@@ -803,7 +832,7 @@ export const ProfileTable: React.FC = () => {
                     key={profile.id}
                     onClick={() => setSelectedProfileId(profile.id)}
                     className={cn(
-                      'group relative transition-all duration-200 cursor-pointer flex flex-col justify-between overflow-hidden',
+                      'aether-stagger-item group relative transition-all duration-200 cursor-pointer flex flex-col justify-between overflow-hidden',
                       'hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5',
                       isSelected && 'border-primary ring-1 ring-primary'
                     )}
@@ -1033,7 +1062,7 @@ export const ProfileTable: React.FC = () => {
                     <TableRow
                       key={profile.id}
                       onClick={() => setSelectedProfileId(profile.id)}
-                      className="cursor-pointer group"
+                      className="aether-stagger-item cursor-pointer group transition-colors duration-150"
                       data-state={isSelected ? 'selected' : undefined}
                     >
                       {/* Checkbox */}
@@ -1170,7 +1199,10 @@ export const ProfileTable: React.FC = () => {
                       <TableCell>
                         {isRunning ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                            </span>
                             <span className="text-emerald-400 font-semibold text-xs">Running</span>
                             {profile.totalRuntimeSec > 0 && (
                               <span className="text-xs font-mono text-muted-foreground">
@@ -1180,7 +1212,7 @@ export const ProfileTable: React.FC = () => {
                           </div>
                         ) : profile.status === 'stopping' ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-spin" />
+                            <span className="w-2.5 h-2.5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
                             <span className="text-amber-400 text-xs">Stopping...</span>
                           </div>
                         ) : profile.status === 'error' ? (

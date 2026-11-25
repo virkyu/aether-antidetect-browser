@@ -67,15 +67,23 @@ export const AppShell: React.FC<AppShellProps> = ({
   const errorCount = profiles.filter((p) => p.status === 'error').length;
   const activeProxiesCount = proxies.filter((p) => p.status === 'active').length;
 
-  // GSAP tab switch transition
+  // GSAP tab switch transition (with cleanup & clearProps so fixed descendants aren't trapped)
   useEffect(() => {
-    if (mainContentRef.current) {
-      gsap.fromTo(
-        mainContentRef.current,
-        { opacity: 0, y: 4 },
-        { opacity: 1, y: 0, duration: 0.18, ease: 'power2.out' }
-      );
-    }
+    const el = mainContentRef.current;
+    if (!el) return;
+    gsap.killTweensOf(el);
+    gsap.fromTo(
+      el,
+      { opacity: 0, y: 10, scale: 0.996 },
+      {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.24,
+        ease: 'power3.out',
+        clearProps: 'transform,opacity',
+      }
+    );
   }, [currentTab]);
 
   const favoriteCount = profiles.filter((p) => p.isFavorite).length;
@@ -108,7 +116,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               src={aetherLogo}
               alt="Aether"
               className={cn(
-                "object-contain shrink-0 drop-shadow-md select-none transition-all",
+                "object-contain shrink-0 drop-shadow-md select-none transition-transform duration-300 ease-out hover:scale-105 hover:rotate-3",
                 collapsed ? "h-10 w-10 mx-auto" : "h-13 w-13"
               )}
             />
@@ -176,14 +184,14 @@ export const AppShell: React.FC<AppShellProps> = ({
                   }
                 }}
                 className={cn(
-                  'flex items-center w-full h-8.5 px-3 rounded-md text-xs font-medium justify-start transition-colors cursor-pointer',
+                  'group relative flex items-center w-full h-8.5 px-3 rounded-md text-xs font-medium justify-start transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer',
                   active
-                    ? 'bg-[#181818] text-white font-semibold border border-[#2a2a2a]'
-                    : 'text-zinc-400 hover:text-white hover:bg-[#141414]'
+                    ? 'bg-[#181818] text-white font-semibold border border-[#2a2a2a] shadow-xs'
+                    : 'text-zinc-400 hover:text-white hover:bg-[#141414] hover:translate-x-0.5'
                 )}
                 title={collapsed ? item.label : undefined}
               >
-                <Icon className={cn('w-4 h-4 shrink-0', active ? 'text-white' : 'text-zinc-500')} />
+                <Icon className={cn('w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110', active ? 'text-primary' : 'text-zinc-500 group-hover:text-zinc-300')} />
                 {!collapsed && (
                   <span className="ml-2.5 truncate text-left flex-1">{item.label}</span>
                 )}
@@ -202,7 +210,12 @@ export const AppShell: React.FC<AppShellProps> = ({
           <div className="p-3 border-t border-[#1a1a1a] bg-[#0a0a0a] space-y-1.5 shrink-0">
             <div className="flex items-center justify-between text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <Cpu className="w-3.5 h-3.5" />
+                <span className="relative flex h-3.5 w-3.5 items-center justify-center">
+                  {runningCount > 0 && (
+                    <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-50" />
+                  )}
+                  <Cpu className={cn('w-3.5 h-3.5 relative', runningCount > 0 && 'text-emerald-400')} />
+                </span>
                 Active Sessions
               </span>
               <span className="font-mono text-foreground font-semibold">{runningCount}</span>
