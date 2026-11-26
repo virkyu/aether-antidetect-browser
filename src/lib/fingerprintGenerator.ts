@@ -1,4 +1,8 @@
 import type { FingerprintConfig, OsType, BrowserType, WebRtcPolicy, CanvasNoiseMode } from '../types/profile';
+import {
+  loadFingerprintRandomizePrefs,
+  type FingerprintRandomizePrefs,
+} from './fingerprintPrefs';
 
 const USER_AGENTS: Record<OsType, Record<BrowserType, string[]>> = {
   windows: {
@@ -75,9 +79,111 @@ export const TIMEZONE_LOCALES = [
 
 const HARDWARE_CORES = [4, 6, 8, 12, 16];
 const MEMORY_OPTIONS = [8, 16, 32];
+const OS_OPTIONS: OsType[] = ['windows', 'macos', 'linux'];
+const BROWSER_OPTIONS: BrowserType[] = ['chrome', 'edge', 'brave'];
+const WEBRTC_POLICIES: WebRtcPolicy[] = ['disable_non_proxied_udp', 'disabled', 'default'];
+const CANVAS_MODES: CanvasNoiseMode[] = ['noise', 'block', 'off'];
 
 function randomChoice<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomChoiceDifferent<T>(arr: T[], current?: T): T {
+  if (arr.length <= 1 || current === undefined) return randomChoice(arr);
+  const filtered = arr.filter((item) => item !== current);
+  return filtered.length > 0 ? randomChoice(filtered) : randomChoice(arr);
+}
+
+/**
+ * Generates or randomizes a fingerprint strictly honoring the user's
+ * Settings -> Fingerprint Randomization preferences.
+ */
+export function randomizeFingerprint(
+  currentFp: Partial<FingerprintConfig> = {},
+  overridePrefs?: FingerprintRandomizePrefs
+): FingerprintConfig {
+  const prefs = overridePrefs || loadFingerprintRandomizePrefs();
+
+  const osType: OsType = prefs.osType
+    ? randomChoiceDifferent(OS_OPTIONS, currentFp.osType)
+    : currentFp.osType || randomChoice<OsType>(['windows', 'windows', 'macos', 'linux']);
+
+  const browserType: BrowserType = prefs.browserType
+    ? randomChoiceDifferent(BROWSER_OPTIONS, currentFp.browserType)
+    : currentFp.browserType || randomChoice<BrowserType>(['chrome', 'chrome', 'edge', 'brave']);
+
+  const uaList = USER_AGENTS[osType]?.[browserType] || USER_AGENTS.windows.chrome;
+  const userAgent = prefs.userAgent
+    ? randomChoiceDifferent(uaList, currentFp.userAgent)
+    : currentFp.userAgent || randomChoice(uaList);
+
+  let screenWidth = currentFp.screenWidth || 1920;
+  let screenHeight = currentFp.screenHeight || 1080;
+  let devicePixelRatio = currentFp.devicePixelRatio || 1;
+  if (prefs.screenResolution || !currentFp.screenWidth || !currentFp.screenHeight) {
+    const currentScreen = SCREEN_RESOLUTIONS.find(
+      (s) => s.w === currentFp.screenWidth && s.h === currentFp.screenHeight
+    );
+    const chosenScreen = randomChoiceDifferent(SCREEN_RESOLUTIONS, currentScreen);
+    screenWidth = chosenScreen.w;
+    screenHeight = chosenScreen.h;
+    devicePixelRatio = chosenScreen.dpr;
+  }
+
+  let timezone = currentFp.timezone || 'Europe/Warsaw';
+  let language = currentFp.language || 'pl-PL,pl;q=0.9,en-US;q=0.8';
+  if (prefs.timezone || !currentFp.timezone) {
+    const currentLocale = TIMEZONE_LOCALES.find((l) => l.tz === currentFp.timezone);
+    const chosenLocale = randomChoiceDifferent(TIMEZONE_LOCALES, currentLocale);
+    timezone = chosenLocale.tz;
+    language = chosenLocale.lang;
+  }
+
+  const hardwareConcurrency =
+    prefs.hardware || !currentFp.hardwareConcurrency
+      ? randomChoiceDifferent(HARDWARE_CORES, currentFp.hardwareConcurrency)
+      : currentFp.hardwareConcurrency;
+
+  const deviceMemoryGb =
+    prefs.hardware || !currentFp.deviceMemoryGb
+      ? randomChoiceDifferent(MEMORY_OPTIONS, currentFp.deviceMemoryGb)
+      : currentFp.deviceMemoryGb;
+
+  const webrtcPolicy: WebRtcPolicy = prefs.webrtcPolicy
+    ? randomChoiceDifferent(WEBRTC_POLICIES, currentFp.webrtcPolicy)
+    : currentFp.webrtcPolicy || 'disable_non_proxied_udp';
+
+  const canvasNoise: CanvasNoiseMode = prefs.noiseProtection
+    ? randomChoiceDifferent(CANVAS_MODES, currentFp.canvasNoise)
+    : currentFp.canvasNoise || 'noise';
+
+  const webglNoise = prefs.noiseProtection
+    ? Math.random() > 0.25
+    : currentFp.webglNoise ?? true;
+
+  const audioNoise = prefs.noiseProtection
+    ? Math.random() > 0.25
+    : currentFp.audioNoise ?? true;
+
+  return {
+    userAgent,
+    osType,
+    browserType,
+    browserVersion: currentFp.browserVersion || '133.0.0.0',
+    screenWidth,
+    screenHeight,
+    devicePixelRatio,
+    language,
+    timezone,
+    geolocation: currentFp.geolocation || { mode: 'auto' },
+    webrtcPolicy,
+    canvasNoise,
+    webglNoise,
+    audioNoise,
+    hardwareConcurrency,
+    deviceMemoryGb,
+    doNotTrack: currentFp.doNotTrack ?? false,
+  };
 }
 
 export function generateRandomFingerprint(

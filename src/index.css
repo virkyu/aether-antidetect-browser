@@ -260,6 +260,38 @@
   }
 }
 
+@keyframes aether-checkbox-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes aether-glow-border {
+  0%, 100% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent), 0 8px 24px -8px color-mix(in srgb, var(--primary) 22%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 48%, transparent), 0 10px 30px -6px color-mix(in srgb, var(--primary) 38%, transparent);
+  }
+}
+
+@utility animate-checkbox-pop {
+  animation: aether-checkbox-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@utility animate-glow-border {
+  animation: aether-glow-border 2.8s ease-in-out infinite;
+}
+
 @utility animate-in {
   animation-name: aether-enter;
   animation-duration: var(--tw-duration, 200ms);

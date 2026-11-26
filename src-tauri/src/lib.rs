@@ -56,6 +56,8 @@ pub fn run() {
             commands::bulk_import_proxies,
             commands::delete_proxy,
             commands::check_proxy,
+            commands::check_for_updates,
+            commands::open_external_url,
         ])
         .setup(|_app| {
             tracing::info!("Aether Browser desktop workspace initialized.");

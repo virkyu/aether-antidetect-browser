@@ -33,8 +33,10 @@ export function App() {
       {currentTab === 'activity' && <ActivityView />}
       {currentTab === 'settings' && <SettingsView />}
       {currentTab === 'extensions' && (
-        <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2 p-8">
-          <Puzzle className="w-10 h-10 text-muted-foreground" />
+        <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3 p-8">
+          <div className="w-16 h-16 rounded-2xl bg-card border border-border flex items-center justify-center shadow-lg animate-float">
+            <Puzzle className="w-8 h-8 text-primary" />
+          </div>
           <h3 className="text-sm font-semibold text-foreground">Browser Extension Manager</h3>
           <p className="text-xs text-muted-foreground max-w-sm text-center">
             Install and manage unpacked extensions or CRX packages globally across all profile instances.

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { History, Shield, Trash2, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
+import { useStaggerEntrance } from '../../lib/animations';
 
 interface ActivityItem {
   id: string;
@@ -41,8 +42,11 @@ export const ActivityView: React.FC = () => {
     },
   ]);
 
+  const activityRef = useRef<HTMLDivElement>(null);
+  useStaggerEntrance(activityRef, '.aether-activity-card', [logs.length], { y: 10, stagger: 0.04 });
+
   return (
-    <div className="flex flex-col h-full overflow-hidden p-6 max-w-4xl mx-auto space-y-4 bg-background">
+    <div ref={activityRef} className="flex flex-col h-full overflow-hidden p-6 max-w-4xl mx-auto space-y-4 bg-background">
       <div className="flex items-center justify-between border-b border-border pb-4">
         <div>
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -74,7 +78,7 @@ export const ActivityView: React.FC = () => {
           logs.map((item) => (
             <Card
               key={item.id}
-              className="p-3.5 flex items-start justify-between gap-4 border-border bg-card"
+              className="aether-activity-card p-3.5 flex items-start justify-between gap-4 border-border bg-card hover:border-zinc-700 hover:-translate-y-0.5"
             >
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 shrink-0">

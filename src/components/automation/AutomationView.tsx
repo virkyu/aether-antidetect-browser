@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Zap,
   Play,
@@ -22,6 +22,7 @@ import { Badge } from '../ui/Badge';
 import { Select } from '../ui/Select';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { useProfileStore } from '../../stores/profileStore';
+import { useStaggerEntrance } from '../../lib/animations';
 import type { WorkflowNode, NodeType, ExecutionLog } from '../../types/automation';
 
 export const AutomationView: React.FC = () => {
@@ -157,8 +158,11 @@ export const AutomationView: React.FC = () => {
         badge: p.status === 'running' ? 'Running' : undefined,
       }));
 
+  const automationRef = useRef<HTMLDivElement>(null);
+  useStaggerEntrance(automationRef, '.aether-node-card', [nodes.length], { y: 10, stagger: 0.04 });
+
   return (
-    <div className="flex h-full overflow-hidden bg-background">
+    <div ref={automationRef} className="flex h-full overflow-hidden bg-background">
       {/* Node Sequence List */}
       <div className="flex-1 flex flex-col border-r border-border overflow-hidden bg-background">
         {/* Scenario Header */}
@@ -198,10 +202,10 @@ export const AutomationView: React.FC = () => {
             return (
               <Card
                 key={node.id}
-                className={`transition-all ${
+                className={`aether-node-card transition-all duration-200 ${
                   isCurrent
-                    ? 'border-primary ring-1 ring-primary shadow-xs'
-                    : 'border-border bg-card'
+                    ? 'border-primary ring-1 ring-primary shadow-xs animate-glow-border scale-[1.01]'
+                    : 'border-border bg-card hover:border-zinc-700'
                 }`}
               >
                 <div className="p-4 space-y-3">

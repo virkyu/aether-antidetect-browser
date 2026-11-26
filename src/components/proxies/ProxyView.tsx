@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   ShieldCheck,
   Plus,
@@ -29,6 +29,7 @@ import { useTranslation } from '../../lib/i18n';
 import { useProxyStore } from '../../stores/proxyStore';
 import { parseProxyString } from '../../lib/proxyParser';
 import { cn } from '../../lib/utils';
+import { useStaggerEntrance } from '../../lib/animations';
 import type { ProxyProtocol } from '../../types/proxy';
 
 export const ProxyView: React.FC = () => {
@@ -185,13 +186,17 @@ export const ProxyView: React.FC = () => {
   })();
 
   const displayedProxies = proxies.filter((p) => !statusFilter || p.status === statusFilter);
+  const proxyViewRef = useRef<HTMLDivElement>(null);
+
+  useStaggerEntrance(proxyViewRef, '.aether-kpi-card', [], { y: 12, stagger: 0.04 });
+  useStaggerEntrance(proxyViewRef, '.aether-proxy-row', [statusFilter, proxies.length], { y: 8, stagger: 0.025 });
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-background">
+    <div ref={proxyViewRef} className="flex flex-col h-full overflow-hidden bg-background">
       {/* 4 Metric Cards in dark theme with Satoshi typography and functional filters */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 px-5 sm:px-6 py-4 border-b border-[#1a1a1a] bg-[#0a0a0a] shrink-0">
         {/* Card 1: Configured Proxies */}
-        <div className="flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] transition-all shadow-xs overflow-hidden">
+        <div className="aether-kpi-card flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] hover:-translate-y-0.5 transition-all duration-200 shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 pb-3">
             <div className="flex items-center justify-between text-zinc-400">
               <span className="text-xs sm:text-[13px] font-medium text-zinc-300">{t.cards.configuredProxies}</span>
@@ -204,20 +209,20 @@ export const ProxyView: React.FC = () => {
             <button
               onClick={() => setStatusFilter(null)}
               className={cn(
-                "h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer",
+                "group h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-all duration-150 active:scale-[0.95] cursor-pointer",
                 statusFilter === null
                   ? "border-white/20 bg-white/10 text-white font-semibold"
                   : "border-[#2a2a2a] bg-[#141414] hover:bg-[#1c1c1c] text-zinc-300"
               )}
             >
               <span>{statusFilter === null ? t.cards.filterApplied : t.cards.applyFilter}</span>
-              <span className="text-zinc-400">→</span>
+              <span className="text-zinc-400 transition-transform duration-150 group-hover:translate-x-0.5">→</span>
             </button>
           </div>
         </div>
 
         {/* Card 2: Online Proxies */}
-        <div className="flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] transition-all shadow-xs overflow-hidden">
+        <div className="aether-kpi-card flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] hover:-translate-y-0.5 transition-all duration-200 shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 pb-3">
             <div className="flex items-center justify-between text-zinc-400">
               <span className="text-xs sm:text-[13px] font-medium text-zinc-300">{t.cards.onlineProxies}</span>
@@ -236,20 +241,20 @@ export const ProxyView: React.FC = () => {
             <button
               onClick={() => setStatusFilter(statusFilter === 'active' ? null : 'active')}
               className={cn(
-                "h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer",
+                "group h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-all duration-150 active:scale-[0.95] cursor-pointer",
                 statusFilter === 'active'
                   ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-semibold"
                   : "border-[#2a2a2a] bg-[#141414] hover:bg-[#1c1c1c] text-zinc-300"
               )}
             >
               <span>{statusFilter === 'active' ? t.cards.filterApplied : t.cards.applyFilter}</span>
-              <span className="text-zinc-400">→</span>
+              <span className="text-zinc-400 transition-transform duration-150 group-hover:translate-x-0.5">→</span>
             </button>
           </div>
         </div>
 
         {/* Card 3: Offline / Failed */}
-        <div className="flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] transition-all shadow-xs overflow-hidden">
+        <div className="aether-kpi-card flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] hover:-translate-y-0.5 transition-all duration-200 shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 pb-3">
             <div className="flex items-center justify-between text-zinc-400">
               <span className="text-xs sm:text-[13px] font-medium text-zinc-300">{t.cards.offlineProxies}</span>
@@ -262,20 +267,20 @@ export const ProxyView: React.FC = () => {
             <button
               onClick={() => setStatusFilter(statusFilter === 'failed' ? null : 'failed')}
               className={cn(
-                "h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer",
+                "group h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-all duration-150 active:scale-[0.95] cursor-pointer",
                 statusFilter === 'failed'
                   ? "border-rose-500/30 bg-rose-500/10 text-rose-300 font-semibold"
                   : "border-[#2a2a2a] bg-[#141414] hover:bg-[#1c1c1c] text-zinc-300"
               )}
             >
               <span>{statusFilter === 'failed' ? t.cards.filterApplied : t.cards.applyFilter}</span>
-              <span className="text-zinc-400">→</span>
+              <span className="text-zinc-400 transition-transform duration-150 group-hover:translate-x-0.5">→</span>
             </button>
           </div>
         </div>
 
         {/* Card 4: Average Latency */}
-        <div className="flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] transition-all shadow-xs overflow-hidden">
+        <div className="aether-kpi-card flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] hover:-translate-y-0.5 transition-all duration-200 shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 pb-3">
             <div className="flex items-center justify-between text-zinc-400">
               <span className="text-xs sm:text-[13px] font-medium text-zinc-300">{t.cards.averageLatency}</span>
@@ -287,10 +292,10 @@ export const ProxyView: React.FC = () => {
           <div className="px-4 sm:px-5 py-2.5 border-t border-[#1a1a1a] flex items-center justify-end">
             <button
               onClick={checkAllProxies}
-              className="h-7 px-3 rounded-md border border-[#2a2a2a] bg-[#141414] hover:bg-[#1c1c1c] text-zinc-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="group h-7 px-3 rounded-md border border-[#2a2a2a] bg-[#141414] hover:bg-[#1c1c1c] text-zinc-300 text-xs font-medium flex items-center gap-1.5 transition-all duration-150 active:scale-[0.95] cursor-pointer"
             >
               <span>{t.cards.testAll}</span>
-              <span className="text-zinc-400">→</span>
+              <span className="text-zinc-400 transition-transform duration-150 group-hover:translate-x-0.5">→</span>
             </button>
           </div>
         </div>
@@ -421,7 +426,7 @@ export const ProxyView: React.FC = () => {
               <TableRow>
                 <TableCell colSpan={7} className="py-20 text-center text-muted-foreground">
                   <div className="flex flex-col items-center justify-center gap-3 max-w-sm mx-auto">
-                    <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground">
+                    <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground animate-float">
                       <ShieldCheck className="w-6 h-6 text-foreground" />
                     </div>
                     <div>
@@ -459,7 +464,7 @@ export const ProxyView: React.FC = () => {
               displayedProxies.map((proxy) => {
                 const isChecking = checkingIds.includes(proxy.id);
                 return (
-                  <TableRow key={proxy.id} className="transition-colors">
+                  <TableRow key={proxy.id} className="aether-proxy-row transition-colors">
                     <TableCell className="px-5 py-3 font-semibold text-foreground">
                       {proxy.title || `${proxy.host}:${proxy.port}`}
                     </TableCell>

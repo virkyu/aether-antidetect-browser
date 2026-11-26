@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Layers,
   Play,
@@ -15,6 +15,7 @@ import { Checkbox } from '../ui/Checkbox';
 import { Select } from '../ui/Select';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/Card';
 import { useProfileStore } from '../../stores/profileStore';
+import { useStaggerEntrance } from '../../lib/animations';
 
 export const SynchronizerView: React.FC = () => {
   const { profiles } = useProfileStore();
@@ -55,8 +56,11 @@ export const SynchronizerView: React.FC = () => {
     })),
   ];
 
+  const syncRef = useRef<HTMLDivElement>(null);
+  useStaggerEntrance(syncRef, '.aether-sync-card', [], { y: 12, stagger: 0.05 });
+
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-6 max-w-4xl mx-auto space-y-6 bg-background">
+    <div ref={syncRef} className="flex flex-col h-full overflow-y-auto p-6 max-w-4xl mx-auto space-y-6 bg-background">
       {/* Header Info */}
       <div className="flex items-center justify-between border-b border-border pb-4">
         <div>
@@ -131,7 +135,7 @@ export const SynchronizerView: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Master Window Selection */}
-        <Card>
+        <Card className="aether-sync-card hover:border-zinc-700">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-xs font-semibold">1. Master Window (Source)</CardTitle>
@@ -158,7 +162,7 @@ export const SynchronizerView: React.FC = () => {
         </Card>
 
         {/* Sync Settings */}
-        <Card>
+        <Card className="aether-sync-card hover:border-zinc-700">
           <CardHeader>
             <CardTitle className="text-xs font-semibold">2. Synchronized Events</CardTitle>
             <CardDescription className="text-[11px]">
@@ -218,7 +222,7 @@ export const SynchronizerView: React.FC = () => {
       </div>
 
       {/* Target Slave Windows List */}
-      <Card>
+      <Card className="aether-sync-card hover:border-zinc-700">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>

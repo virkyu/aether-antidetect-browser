@@ -27,7 +27,7 @@ import { Button } from '../ui/Button';
 import { useProfileStore } from '../../stores/profileStore';
 import { useProxyStore } from '../../stores/proxyStore';
 import { useFolderStore } from '../../stores/folderStore';
-import { generateRandomFingerprint } from '../../lib/fingerprintGenerator';
+import { randomizeFingerprint } from '../../lib/fingerprintGenerator';
 import type { Profile } from '../../types/profile';
 
 interface ProfileDetailViewProps {
@@ -92,12 +92,7 @@ export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile })
       { rotation: 0 },
       { rotation: 360, duration: 0.45, ease: 'back.out(1.7)', overwrite: true, clearProps: 'transform' }
     );
-    const freshFp = generateRandomFingerprint(
-      profile.fingerprint.osType,
-      profile.fingerprint.browserType,
-      { w: profile.fingerprint.screenWidth, h: profile.fingerprint.screenHeight },
-      profile.fingerprint.timezone
-    );
+    const freshFp = randomizeFingerprint(profile.fingerprint);
     await updateProfile({
       id: profile.id,
       fingerprint: freshFp,

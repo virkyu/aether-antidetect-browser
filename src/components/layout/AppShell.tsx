@@ -18,6 +18,10 @@ import {
   Cpu,
   Copy,
   Globe,
+  Download,
+  Sparkles,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 import gsap from 'gsap';
 import aetherLogo from '../../assets/logo.png';
@@ -27,6 +31,7 @@ import { useTranslation } from '../../lib/i18n';
 import { useProfileStore } from '../../stores/profileStore';
 import { useProxyStore } from '../../stores/proxyStore';
 import { useUserStore } from '../../stores/userStore';
+import { useUpdateStore } from '../../stores/updateStore';
 import { cn } from '../../lib/utils';
 
 export type NavTab = 
@@ -60,7 +65,38 @@ export const AppShell: React.FC<AppShellProps> = ({
   } = useProfileStore();
   const { proxies } = useProxyStore();
   const { name, openNamePrompt } = useUserStore();
+  const {
+    updateInfo,
+    dismissed,
+    isPreviewMode,
+    checkForUpdates,
+    dismissUpdate,
+    reopenUpdateBanner,
+    openReleasePage,
+  } = useUpdateStore();
   const mainContentRef = useRef<HTMLDivElement>(null);
+  const sidebarNavRef = useRef<HTMLElement>(null);
+
+  // Automatic silent update check shortly after launch
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      checkForUpdates(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [checkForUpdates]);
+
+  // Initial staggered sidebar nav entrance animation
+  useEffect(() => {
+    const nav = sidebarNavRef.current;
+    if (!nav) return;
+    const buttons = nav.querySelectorAll('button');
+    if (buttons.length === 0) return;
+    gsap.fromTo(
+      buttons,
+      { opacity: 0, x: -10 },
+      { opacity: 1, x: 0, duration: 0.28, stagger: 0.035, ease: 'power2.out', clearProps: 'transform,opacity' }
+    );
+  }, []);
 
   const runningCount = profiles.filter((p) => p.status === 'running').length;
   const idleCount = profiles.filter((p) => p.status === 'idle' || !p.status).length;
@@ -135,10 +171,14 @@ export const AppShell: React.FC<AppShellProps> = ({
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className="h-8 w-8 text-zinc-500 hover:text-white hover:bg-[#181818] shrink-0 ml-1"
+            className="group h-8 w-8 text-zinc-500 hover:text-white hover:bg-[#181818] shrink-0 ml-1"
             title={collapsed ? 'Rozwiń pasek boczny' : 'Zwiń pasek boczny'}
           >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+            ) : (
+              <ChevronLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+            )}
           </Button>
         </div>
 
@@ -146,12 +186,12 @@ export const AppShell: React.FC<AppShellProps> = ({
         <div className="px-3 pb-3.5 pt-1 shrink-0">
           <button
             onClick={openCreateModal}
-            className="w-full h-10 rounded-lg bg-primary hover:bg-primary/90 active:scale-[0.98] text-primary-foreground flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer select-none px-2 font-black"
+            className="group relative overflow-hidden w-full h-10 rounded-lg bg-primary hover:bg-primary/90 hover:shadow-md active:scale-[0.96] text-primary-foreground flex items-center justify-center gap-2 shadow-sm transition-all duration-200 ease-out cursor-pointer select-none px-2 font-black"
             title="Create Profile"
           >
-            <PlusCircle className="w-5 h-5 text-primary-foreground stroke-[2.5] shrink-0" />
+            <PlusCircle className="w-5 h-5 text-primary-foreground stroke-[2.5] shrink-0 transition-transform duration-300 ease-out group-hover:rotate-90 group-hover:scale-110" />
             {!collapsed && (
-              <span className="truncate text-[15.5px] font-black tracking-tight leading-none text-primary-foreground">
+              <span className="truncate text-[15.5px] font-black tracking-tight leading-none text-primary-foreground transition-transform duration-200 group-hover:translate-x-0.5">
                 Create Profile
               </span>
             )}
@@ -159,7 +199,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 px-2.5 py-1 space-y-0.5 overflow-y-auto">
+        <nav ref={sidebarNavRef} className="flex-1 px-2.5 py-1 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isFav = item.id === ('favorites' as any);
@@ -184,13 +224,16 @@ export const AppShell: React.FC<AppShellProps> = ({
                   }
                 }}
                 className={cn(
-                  'group relative flex items-center w-full h-8.5 px-3 rounded-md text-xs font-medium justify-start transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer',
+                  'group relative flex items-center w-full h-8.5 px-3 rounded-md text-xs font-medium justify-start transition-all duration-150 ease-out active:scale-[0.97] cursor-pointer',
                   active
                     ? 'bg-[#181818] text-white font-semibold border border-[#2a2a2a] shadow-xs'
                     : 'text-zinc-400 hover:text-white hover:bg-[#141414] hover:translate-x-0.5'
                 )}
                 title={collapsed ? item.label : undefined}
               >
+                {active && (
+                  <span className="absolute left-0.5 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-full bg-primary animate-in fade-in-0 zoom-in-95" />
+                )}
                 <Icon className={cn('w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110', active ? 'text-primary' : 'text-zinc-500 group-hover:text-zinc-300')} />
                 {!collapsed && (
                   <span className="ml-2.5 truncate text-left flex-1">{item.label}</span>
@@ -243,7 +286,10 @@ export const AppShell: React.FC<AppShellProps> = ({
                 className="h-8 w-8 object-contain shrink-0 drop-shadow-sm select-none"
               />
             ) : null}
-            <h1 className="text-sm sm:text-base font-bold text-foreground uppercase tracking-wider truncate">
+            <h1
+              key={currentTab}
+              className="text-sm sm:text-base font-bold text-foreground uppercase tracking-wider truncate animate-in fade-in-0 slide-in-from-left-2"
+            >
               {currentTab === 'profiles'
                 ? t.nav.allProfiles
                 : currentTab === 'proxies'
@@ -267,15 +313,31 @@ export const AppShell: React.FC<AppShellProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
+            {/* Update Available Quick Pill */}
+            {updateInfo?.updateAvailable && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => (dismissed ? reopenUpdateBanner() : openReleasePage())}
+                className="group h-8 px-2.5 text-xs font-semibold gap-1.5 border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 animate-glow-border"
+                title={t.settings.updateAvailableBadge}
+              >
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                <span className="hidden md:inline font-mono">
+                  {updateInfo.tagName}
+                </span>
+              </Button>
+            )}
+
             {/* User Name Pill */}
             <Button
               variant="outline"
               size="sm"
               onClick={openNamePrompt}
-              className="h-8 gap-2 text-xs font-medium border-border hover:bg-secondary/60 transition-colors"
+              className="group h-8 gap-2 text-xs font-medium border-border hover:bg-secondary/60 transition-all"
               title={t.nav.changeName}
             >
-              <div className="w-4 h-4 rounded-full bg-secondary flex items-center justify-center text-foreground font-semibold text-[10px]">
+              <div className="w-4 h-4 rounded-full bg-secondary flex items-center justify-center text-foreground font-semibold text-[10px] transition-transform duration-200 group-hover:scale-110">
                 {name ? name.charAt(0).toUpperCase() : <User className="w-3 h-3 text-muted-foreground" />}
               </div>
               <span className="max-w-[110px] truncate text-foreground">
@@ -288,10 +350,10 @@ export const AppShell: React.FC<AppShellProps> = ({
               variant="outline"
               size="sm"
               onClick={() => setLanguage(language === 'pl' ? 'en' : 'pl')}
-              className="h-8 px-2.5 text-xs font-semibold gap-1.5 border-border hover:bg-secondary/60 transition-colors"
+              className="group h-8 px-2.5 text-xs font-semibold gap-1.5 border-border hover:bg-secondary/60 transition-all"
               title={language === 'pl' ? 'Switch to English' : 'Przełącz na polski'}
             >
-              <Globe className="w-3.5 h-3.5 text-zinc-400" />
+              <Globe className="w-3.5 h-3.5 text-zinc-400 transition-transform duration-500 ease-out group-hover:rotate-180 group-hover:text-foreground" />
               <span className="font-mono text-[11px] font-bold text-foreground">
                 {language.toUpperCase()}
               </span>
@@ -303,18 +365,18 @@ export const AppShell: React.FC<AppShellProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={openBulkCreateModal}
-                  className="h-8 text-xs gap-1.5 font-medium"
+                  className="group h-8 text-xs gap-1.5 font-medium"
                 >
-                  <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                  <Copy className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:text-foreground" />
                   <span className="hidden sm:inline">{t.nav.bulkGenerate}</span>
                 </Button>
                 <Button
                   variant="default"
                   size="sm"
                   onClick={openCreateModal}
-                  className="h-8 text-xs gap-1.5 font-semibold"
+                  className="group h-8 text-xs gap-1.5 font-semibold"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-90" />
                   <span>{t.nav.newProfile}</span>
                 </Button>
               </div>
@@ -326,6 +388,72 @@ export const AppShell: React.FC<AppShellProps> = ({
         <main ref={mainContentRef} className="flex-1 overflow-hidden relative flex flex-col min-w-0 bg-background">
           {children}
         </main>
+
+        {/* Floating Animated Update Notification Toast */}
+        {updateInfo?.updateAvailable && !dismissed && (
+          <div className="fixed bottom-5 right-5 z-50 w-96 max-w-[calc(100vw-2.5rem)] rounded-xl border border-primary/40 bg-[#111111]/95 backdrop-blur-md p-4 shadow-2xl animate-in fade-in-0 slide-in-from-bottom-2 zoom-in-95 animate-glow-border">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5">
+                <Download className="w-4 h-4 animate-bounce" />
+              </div>
+
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs font-bold text-white truncate">
+                      {t.settings.updateAvailableBadge}
+                    </span>
+                    <Badge variant="outline" className="font-mono text-[10px] border-primary/40 text-primary px-1.5 py-0">
+                      {updateInfo.tagName}
+                    </Badge>
+                    {isPreviewMode && (
+                      <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                        PREVIEW
+                      </Badge>
+                    )}
+                  </div>
+                  <button
+                    onClick={dismissUpdate}
+                    className="text-zinc-500 hover:text-white transition-colors p-0.5 rounded cursor-pointer"
+                    title={t.settings.dismissUpdate}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-zinc-400 font-mono">
+                  v{updateInfo.currentVersion} → v{updateInfo.latestVersion}
+                </p>
+
+                {updateInfo.body && (
+                  <p className="text-[11px] text-zinc-300 line-clamp-2 leading-relaxed pt-0.5">
+                    {updateInfo.body.replace(/[#*`]/g, '').trim()}
+                  </p>
+                )}
+
+                <div className="flex items-center gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    onClick={() => openReleasePage(updateInfo.downloadUrl || updateInfo.htmlUrl)}
+                    className="h-7 text-[11px] px-3 gap-1.5 font-semibold"
+                  >
+                    <Download className="w-3 h-3" />
+                    {t.settings.downloadUpdate}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openReleasePage(updateInfo.htmlUrl)}
+                    className="h-7 text-[11px] px-2.5 gap-1"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    {t.settings.viewOnGithub}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

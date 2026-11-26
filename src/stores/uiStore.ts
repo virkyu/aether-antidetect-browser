@@ -1,4 +1,10 @@
 import { create } from 'zustand';
+import {
+  DEFAULT_FINGERPRINT_RANDOMIZE_PREFS,
+  loadFingerprintRandomizePrefs,
+  saveFingerprintRandomizePrefs,
+  type FingerprintRandomizePrefs,
+} from '../lib/fingerprintPrefs';
 
 export type Language = 'pl' | 'en';
 export type ThemeColor = 'default' | 'emerald' | 'blue' | 'purple' | 'amber' | 'rose' | 'cyan';
@@ -29,6 +35,10 @@ interface UIState {
   setLanguage: (lang: Language) => void;
   themeColor: ThemeColor;
   setThemeColor: (color: ThemeColor) => void;
+  fingerprintRandomizePrefs: FingerprintRandomizePrefs;
+  setFingerprintRandomizePref: (key: keyof FingerprintRandomizePrefs, value: boolean) => void;
+  setAllFingerprintRandomizePrefs: (enabled: boolean) => void;
+  resetFingerprintRandomizePrefs: () => void;
 }
 
 const STORAGE_KEY = 'aether_ui_scale_v4';
@@ -169,4 +179,36 @@ export const useUIStore = create<UIState>((set) => ({
     applyThemeColor(color);
     set({ themeColor: color });
   },
+
+  fingerprintRandomizePrefs: loadFingerprintRandomizePrefs(),
+
+  setFingerprintRandomizePref: (key, value) =>
+    set((state) => {
+      const next = { ...state.fingerprintRandomizePrefs, [key]: value };
+      saveFingerprintRandomizePrefs(next);
+      return { fingerprintRandomizePrefs: next };
+    }),
+
+  setAllFingerprintRandomizePrefs: (enabled) =>
+    set(() => {
+      const next: FingerprintRandomizePrefs = {
+        osType: enabled,
+        browserType: enabled,
+        userAgent: enabled,
+        screenResolution: enabled,
+        timezone: enabled,
+        hardware: enabled,
+        webrtcPolicy: enabled,
+        noiseProtection: enabled,
+      };
+      saveFingerprintRandomizePrefs(next);
+      return { fingerprintRandomizePrefs: next };
+    }),
+
+  resetFingerprintRandomizePrefs: () =>
+    set(() => {
+      const next = { ...DEFAULT_FINGERPRINT_RANDOMIZE_PREFS };
+      saveFingerprintRandomizePrefs(next);
+      return { fingerprintRandomizePrefs: next };
+    }),
 }));

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
-import { generateRandomFingerprint } from '../lib/fingerprintGenerator';
+import { generateRandomFingerprint, randomizeFingerprint } from '../lib/fingerprintGenerator';
 import type { Profile, CreateProfileInput, UpdateProfileInput, BulkCreateProfilesInput } from '../types/profile';
 
 interface ProfileState {
@@ -206,12 +206,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     if (!profile) return undefined;
     set({ isLoading: true });
     try {
-      const freshFp = generateRandomFingerprint(
-        profile.fingerprint.osType,
-        profile.fingerprint.browserType,
-        { w: profile.fingerprint.screenWidth, h: profile.fingerprint.screenHeight },
-        profile.fingerprint.timezone
-      );
+      const freshFp = randomizeFingerprint(profile.fingerprint);
       const cloned = await invoke<Profile>('create_profile', {
         input: {
           name: `${profile.name} (Copy)`,

@@ -11,9 +11,11 @@ import { useTranslation } from '../../lib/i18n';
 import { useProfileStore } from '../../stores/profileStore';
 import { useProxyStore } from '../../stores/proxyStore';
 import { useFolderStore, FOLDER_COLOR_PRESETS, FOLDER_ICON_PRESETS } from '../../stores/folderStore';
+import { useUIStore } from '../../stores/uiStore';
 import { cn } from '../../lib/utils';
 import {
   generateRandomFingerprint,
+  randomizeFingerprint,
   SCREEN_RESOLUTIONS,
   TIMEZONE_LOCALES,
 } from '../../lib/fingerprintGenerator';
@@ -103,6 +105,20 @@ export const ProfileModal: React.FC = () => {
 
   const previewCardRef = useRef<HTMLDivElement>(null);
   const diceRef = useRef<HTMLSpanElement>(null);
+  const fpRandomizePrefs = useUIStore((s) => s.fingerprintRandomizePrefs);
+
+  const activeFpRandomLabels = useMemo(() => {
+    const items: string[] = [];
+    if (fpRandomizePrefs.osType) items.push('OS');
+    if (fpRandomizePrefs.browserType) items.push('Browser');
+    if (fpRandomizePrefs.userAgent) items.push('User-Agent');
+    if (fpRandomizePrefs.screenResolution) items.push('Resolution');
+    if (fpRandomizePrefs.timezone) items.push('Timezone & Lang');
+    if (fpRandomizePrefs.hardware) items.push('CPU & RAM');
+    if (fpRandomizePrefs.webrtcPolicy) items.push('WebRTC');
+    if (fpRandomizePrefs.noiseProtection) items.push('Canvas/WebGL/Audio');
+    return items;
+  }, [fpRandomizePrefs]);
 
   const handleRandomizeFingerprint = () => {
     if (diceRef.current) {
@@ -128,18 +144,35 @@ export const ProfileModal: React.FC = () => {
       );
     }
 
-    const randomFp = generateRandomFingerprint(
+    const randomFp = randomizeFingerprint({
       osType,
       browserType,
-      { w: screenWidth, h: screenHeight },
-      timezone
-    );
+      userAgent,
+      screenWidth,
+      screenHeight,
+      timezone,
+      language,
+      hardwareConcurrency,
+      deviceMemoryGb,
+      webrtcPolicy,
+      canvasNoise,
+      webglNoise,
+      audioNoise,
+    });
 
-    // Screen resolution and timezone are preserved (do not change during randomization)
+    setOsType(randomFp.osType);
+    setBrowserType(randomFp.browserType);
     setUserAgent(randomFp.userAgent);
+    setScreenWidth(randomFp.screenWidth);
+    setScreenHeight(randomFp.screenHeight);
+    setTimezone(randomFp.timezone);
     setLanguage(randomFp.language);
     setHardwareConcurrency(randomFp.hardwareConcurrency);
     setDeviceMemoryGb(randomFp.deviceMemoryGb);
+    setWebrtcPolicy(randomFp.webrtcPolicy);
+    setCanvasNoise(randomFp.canvasNoise);
+    setWebglNoise(randomFp.webglNoise);
+    setAudioNoise(randomFp.audioNoise);
   };
 
   useEffect(() => {
@@ -349,10 +382,14 @@ export const ProfileModal: React.FC = () => {
           </Button>
         </div>
 
-        {/* Resolution note */}
-        <div className="text-[11px] text-zinc-400 flex items-center gap-1.5 px-1 pb-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-          <span>{t.modal.resolutionLockedHint}</span>
+        {/* Active randomization settings hint */}
+        <div className="text-[11px] text-zinc-400 flex items-center gap-1.5 px-1 pb-1 flex-wrap">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <span>
+            {activeFpRandomLabels.length > 0
+              ? `${t.modal.fpRandomizeActiveHint}: ${activeFpRandomLabels.join(', ')}`
+              : t.modal.fpRandomizeNoneHint}
+          </span>
         </div>
 
         {/* shadcn Tabs Component */}

@@ -52,7 +52,8 @@ import { useProxyStore } from '../../stores/proxyStore';
 import { useFolderStore, type Folder } from '../../stores/folderStore';
 import { FolderModal } from './FolderModal';
 import { cn, formatDuration, formatTimeAgo } from '../../lib/utils';
-import { generateRandomFingerprint } from '../../lib/fingerprintGenerator';
+import { useStaggerEntrance } from '../../lib/animations';
+import { randomizeFingerprint } from '../../lib/fingerprintGenerator';
 import { useTranslation } from '../../lib/i18n';
 import { ProfileDetailView } from './ProfileDetailView';
 import type { Profile } from '../../types/profile';
@@ -162,28 +163,9 @@ export const ProfileTable: React.FC = () => {
     }
   }, [profiles.length]);
 
-  // Staggered list / bento grid entrance on viewMode or folder change
-  useEffect(() => {
-    const container = tableContainerRef.current;
-    if (!container) return;
-    const items = container.querySelectorAll('.aether-stagger-item');
-    if (items.length === 0) return;
-
-    const targetItems = Array.from(items).slice(0, 24);
-    gsap.killTweensOf(targetItems);
-    gsap.fromTo(
-      targetItems,
-      { opacity: 0, y: 8 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 0.24,
-        stagger: 0.02,
-        ease: 'power2.out',
-        clearProps: 'transform,opacity',
-      }
-    );
-  }, [viewMode, activeFolderId]);
+  // Staggered KPI summary cards & list / bento grid entrance
+  useStaggerEntrance(tableContainerRef, '.aether-kpi-card', [profiles.length > 0], { y: 12, stagger: 0.04 });
+  useStaggerEntrance(tableContainerRef, '.aether-stagger-item', [viewMode, activeFolderId], { y: 8, stagger: 0.02 });
 
   // Filtered and sorted profiles
   const filteredProfiles = useMemo(() => {
@@ -266,12 +248,7 @@ export const ProfileTable: React.FC = () => {
       { rotation: 0 },
       { rotation: 360, duration: 0.45, ease: 'back.out(1.7)', overwrite: true, clearProps: 'transform' }
     );
-    const freshFp = generateRandomFingerprint(
-      profile.fingerprint.osType,
-      profile.fingerprint.browserType,
-      { w: profile.fingerprint.screenWidth, h: profile.fingerprint.screenHeight },
-      profile.fingerprint.timezone
-    );
+    const freshFp = randomizeFingerprint(profile.fingerprint);
     await updateProfile({
       id: profile.id,
       fingerprint: freshFp,
@@ -310,7 +287,7 @@ export const ProfileTable: React.FC = () => {
             <span>TypeUI Architecture • 100% Isolated & Private</span>
           </Badge>
 
-          <div className="w-16 h-16 rounded-2xl bg-secondary border border-border flex items-center justify-center text-foreground shadow-xs relative">
+          <div className="w-16 h-16 rounded-2xl bg-secondary border border-border flex items-center justify-center text-foreground shadow-xs relative animate-float">
             <Monitor className="w-8 h-8 text-foreground" />
             <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -399,7 +376,7 @@ export const ProfileTable: React.FC = () => {
       {/* 4 Metric Cards in dark theme with Satoshi typography and functional filters */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 px-5 sm:px-6 py-4 border-b border-[#1a1a1a] bg-[#0a0a0a] shrink-0">
         {/* Card 1: Total Profiles */}
-        <div className="flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] transition-all shadow-xs overflow-hidden">
+        <div className="aether-kpi-card flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] hover:-translate-y-0.5 transition-all duration-200 shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 pb-3">
             <div className="flex items-center justify-between text-zinc-400">
               <span className="text-xs sm:text-[13px] font-medium text-zinc-300">{t.cards.totalProfiles}</span>
@@ -415,20 +392,20 @@ export const ProfileTable: React.FC = () => {
                 setStatusFilter(null);
               }}
               className={cn(
-                "h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer",
+                "group h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-all duration-150 active:scale-[0.95] cursor-pointer",
                 statusFilter === null
                   ? "border-white/20 bg-white/10 text-white font-semibold"
                   : "border-[#2a2a2a] bg-[#141414] hover:bg-[#1c1c1c] text-zinc-300"
               )}
             >
               <span>{statusFilter === null ? t.cards.filterApplied : t.cards.applyFilter}</span>
-              <span className="text-zinc-400">→</span>
+              <span className="text-zinc-400 transition-transform duration-150 group-hover:translate-x-0.5">→</span>
             </button>
           </div>
         </div>
 
         {/* Card 2: Active Sessions */}
-        <div className="flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] transition-all shadow-xs overflow-hidden">
+        <div className="aether-kpi-card flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] hover:-translate-y-0.5 transition-all duration-200 shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 pb-3">
             <div className="flex items-center justify-between text-zinc-400">
               <span className="text-xs sm:text-[13px] font-medium text-zinc-300">{t.cards.activeSessions}</span>
@@ -450,20 +427,20 @@ export const ProfileTable: React.FC = () => {
                 setStatusFilter(statusFilter === 'running' ? null : 'running');
               }}
               className={cn(
-                "h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer",
+                "group h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-all duration-150 active:scale-[0.95] cursor-pointer",
                 statusFilter === 'running'
                   ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-semibold"
                   : "border-[#2a2a2a] bg-[#141414] hover:bg-[#1c1c1c] text-zinc-300"
               )}
             >
               <span>{statusFilter === 'running' ? t.cards.filterApplied : t.cards.applyFilter}</span>
-              <span className="text-zinc-400">→</span>
+              <span className="text-zinc-400 transition-transform duration-150 group-hover:translate-x-0.5">→</span>
             </button>
           </div>
         </div>
 
         {/* Card 3: Proxied Profiles */}
-        <div className="flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] transition-all shadow-xs overflow-hidden">
+        <div className="aether-kpi-card flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] hover:-translate-y-0.5 transition-all duration-200 shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 pb-3">
             <div className="flex items-center justify-between text-zinc-400">
               <span className="text-xs sm:text-[13px] font-medium text-zinc-300">{t.cards.proxiedProfiles}</span>
@@ -479,20 +456,20 @@ export const ProfileTable: React.FC = () => {
                 setStatusFilter(statusFilter === 'proxied' ? null : 'proxied');
               }}
               className={cn(
-                "h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer",
+                "group h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-all duration-150 active:scale-[0.95] cursor-pointer",
                 statusFilter === 'proxied'
                   ? "border-white/20 bg-white/10 text-white font-semibold"
                   : "border-[#2a2a2a] bg-[#141414] hover:bg-[#1c1c1c] text-zinc-300"
               )}
             >
               <span>{statusFilter === 'proxied' ? t.cards.filterApplied : t.cards.applyFilter}</span>
-              <span className="text-zinc-400">→</span>
+              <span className="text-zinc-400 transition-transform duration-150 group-hover:translate-x-0.5">→</span>
             </button>
           </div>
         </div>
 
         {/* Card 4: Favorite Profiles */}
-        <div className="flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] transition-all shadow-xs overflow-hidden">
+        <div className="aether-kpi-card flex flex-col justify-between rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] hover:border-[#2a2a2a] hover:-translate-y-0.5 transition-all duration-200 shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 pb-3">
             <div className="flex items-center justify-between text-zinc-400">
               <span className="text-xs sm:text-[13px] font-medium text-zinc-300">{t.cards.favoriteProfiles}</span>
@@ -511,14 +488,14 @@ export const ProfileTable: React.FC = () => {
                 setStatusFilter(statusFilter === 'favorites' ? null : 'favorites');
               }}
               className={cn(
-                "h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer",
+                "group h-7 px-3 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-all duration-150 active:scale-[0.95] cursor-pointer",
                 statusFilter === 'favorites'
                   ? "border-amber-500/30 bg-amber-500/10 text-amber-300 font-semibold"
                   : "border-[#2a2a2a] bg-[#141414] hover:bg-[#1c1c1c] text-zinc-300"
               )}
             >
               <span>{statusFilter === 'favorites' ? t.cards.filterApplied : t.cards.applyFilter}</span>
-              <span className="text-zinc-400">→</span>
+              <span className="text-zinc-400 transition-transform duration-150 group-hover:translate-x-0.5">→</span>
             </button>
           </div>
         </div>
@@ -530,7 +507,7 @@ export const ProfileTable: React.FC = () => {
           <button
             onClick={() => setActiveFolderId(null)}
             className={cn(
-              "h-7 px-3 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shrink-0 border",
+              "h-7 px-3 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all duration-150 active:scale-[0.95] hover:-translate-y-0.5 cursor-pointer shrink-0 border",
               activeFolderId === null
                 ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
                 : "bg-[#141414] border-[#222222] text-zinc-400 hover:bg-[#1a1a1a] hover:text-white"
@@ -567,7 +544,7 @@ export const ProfileTable: React.FC = () => {
                       : undefined
                   }
                   className={cn(
-                    "h-7 pl-2.5 pr-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer border",
+                    "h-7 pl-2.5 pr-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all duration-150 active:scale-[0.96] hover:-translate-y-0.5 cursor-pointer border",
                     isActive
                       ? "font-semibold ring-1"
                       : "bg-[#141414] border-[#222222] text-zinc-300 hover:bg-[#1a1a1a] hover:text-white hover:border-[#333333]"
