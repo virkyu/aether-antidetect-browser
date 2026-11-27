@@ -73,4 +73,5 @@ export interface BulkCreateProfilesInput {
   browserType: BrowserType;
   proxyIds?: string[];
   tags?: string[];
+  fingerprints?: FingerprintConfig[];
 }

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Dices, Monitor, Globe, Cpu, Zap, X, Plus, Folder as FolderIcon, Check, Pipette } from 'lucide-react';
+import { Dices, Monitor, Globe, Cpu, Zap, X, Plus, Folder as FolderIcon, Check, Pipette, ShieldCheck, AlertTriangle } from 'lucide-react';
 import gsap from 'gsap';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
+import { Switch } from '../ui/Switch';
 import { Badge } from '../ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/Tabs';
 import { useTranslation } from '../../lib/i18n';
@@ -14,7 +15,7 @@ import { useFolderStore, FOLDER_COLOR_PRESETS, FOLDER_ICON_PRESETS } from '../..
 import { useUIStore } from '../../stores/uiStore';
 import { cn } from '../../lib/utils';
 import {
-  generateRandomFingerprint,
+  buildFingerprintFromDefaults,
   randomizeFingerprint,
   SCREEN_RESOLUTIONS,
   TIMEZONE_LOCALES,
@@ -106,6 +107,7 @@ export const ProfileModal: React.FC = () => {
   const previewCardRef = useRef<HTMLDivElement>(null);
   const diceRef = useRef<HTMLSpanElement>(null);
   const fpRandomizePrefs = useUIStore((s) => s.fingerprintRandomizePrefs);
+  const defaultProfileSettings = useUIStore((s) => s.defaultProfileSettings);
 
   const activeFpRandomLabels = useMemo(() => {
     const items: string[] = [];
@@ -199,16 +201,21 @@ export const ProfileModal: React.FC = () => {
       setTimezone(editingProfile.fingerprint.timezone);
       setUserAgent(editingProfile.fingerprint.userAgent);
     } else {
+      const defaults = useUIStore.getState().defaultProfileSettings;
       const defaultName = `Profile ${Math.floor(1000 + Math.random() * 9000)}`;
       setName(defaultName);
-      setGroupId(activeFolderId && activeFolderId !== 'unassigned' ? activeFolderId : '');
-      setTags('work');
-      setProxyId('');
+      setGroupId(
+        activeFolderId && activeFolderId !== 'unassigned'
+          ? activeFolderId
+          : defaults.folderId || ''
+      );
+      setTags(defaults.defaultTags || 'work');
+      setProxyId(defaults.defaultProxyId || '');
       setNotes('');
 
-      const randomFp = generateRandomFingerprint('windows', 'brave');
+      const randomFp = buildFingerprintFromDefaults(defaults);
       setOsType(randomFp.osType);
-      setBrowserType('brave');
+      setBrowserType(randomFp.browserType);
       setScreenWidth(randomFp.screenWidth);
       setScreenHeight(randomFp.screenHeight);
       setWebrtcPolicy(randomFp.webrtcPolicy);
@@ -221,7 +228,7 @@ export const ProfileModal: React.FC = () => {
       setTimezone(randomFp.timezone);
       setUserAgent(randomFp.userAgent);
     }
-  }, [isOpen, isEditing, editingProfile]);
+  }, [isOpen, isEditing, editingProfile, activeFolderId, defaultProfileSettings]);
 
   if (!isOpen) return null;
 
@@ -784,6 +791,59 @@ export const ProfileModal: React.FC = () => {
                 placeholder="Mozilla/5.0..."
                 className="font-mono text-xs"
               />
+            </div>
+
+            <div className="pt-2 border-t border-border/60 space-y-3">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Anti-Leak & Hardware Spoofing Shield</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1.5">{t.modal.webrtcPolicy}</label>
+                  <Select
+                    value={webrtcPolicy}
+                    onChange={(val) => setWebrtcPolicy(val as WebRtcPolicy)}
+                    options={[
+                      { value: 'disable_non_proxied_udp', label: 'Disable Non-Proxied UDP (Safe)' },
+                      { value: 'disabled', label: 'Disabled (Block WebRTC)' },
+                      { value: 'default', label: 'Default (Public Interface)' },
+                    ]}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1.5">{t.modal.canvasProtection}</label>
+                  <Select
+                    value={canvasNoise}
+                    onChange={(val) => setCanvasNoise(val as CanvasNoiseMode)}
+                    options={[
+                      { value: 'noise', label: 'Seeded Noise (Unique & Stable)' },
+                      { value: 'block', label: 'Block Readout' },
+                      { value: 'off', label: 'Off (Real Canvas)' },
+                    ]}
+                  />
+                </div>
+              </div>
+
+              {webrtcPolicy === 'default' && (
+                <div className="p-2.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] flex items-center gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                  <span>WebRTC „Default” może ujawnić prawdziwe IP bez proxy (Aether automatycznie wymusza bezpieczny tryb, gdy przypięte jest proxy).</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-muted/30">
+                  <span className="text-xs font-medium text-foreground">{t.modal.webglProtection}</span>
+                  <Switch checked={webglNoise} onCheckedChange={setWebglNoise} />
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-muted/30">
+                  <span className="text-xs font-medium text-foreground">{t.modal.audioProtection}</span>
+                  <Switch checked={audioNoise} onCheckedChange={setAudioNoise} />
+                </div>
+              </div>
             </div>
           </TabsContent>
         </Tabs>

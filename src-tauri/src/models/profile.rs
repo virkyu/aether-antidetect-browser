@@ -215,7 +215,7 @@ impl Default for UpdateProfileInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct BulkCreateProfilesInput {
     pub count: usize,
     pub name_prefix: String,
@@ -225,4 +225,21 @@ pub struct BulkCreateProfilesInput {
     pub browser_type: BrowserType,
     pub proxy_ids: Option<Vec<String>>,
     pub tags: Option<Vec<String>>,
+    pub fingerprints: Option<Vec<FingerprintConfig>>,
+}
+
+impl Default for BulkCreateProfilesInput {
+    fn default() -> Self {
+        Self {
+            count: 1,
+            name_prefix: "Profile".to_string(),
+            group_id: None,
+            group_name: None,
+            os_type: OsType::Windows,
+            browser_type: BrowserType::Chrome,
+            proxy_ids: None,
+            tags: None,
+            fingerprints: None,
+        }
+    }
 }

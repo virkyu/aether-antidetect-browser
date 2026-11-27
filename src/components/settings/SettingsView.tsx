@@ -21,6 +21,8 @@ import {
   Clock,
   ShieldCheck,
   Sliders,
+  Folder as FolderIcon,
+  Layers,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -31,8 +33,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui
 import { useUIStore, THEME_OPTIONS } from '../../stores/uiStore';
 import { useUserStore } from '../../stores/userStore';
 import { useUpdateStore, APP_VERSION } from '../../stores/updateStore';
+import { useFolderStore } from '../../stores/folderStore';
+import { useProxyStore } from '../../stores/proxyStore';
+import { SCREEN_RESOLUTIONS, TIMEZONE_LOCALES } from '../../lib/fingerprintGenerator';
 import { useTranslation } from '../../lib/i18n';
 import type { FingerprintRandomizePrefs } from '../../lib/fingerprintPrefs';
+import type { BrowserType, CanvasNoiseMode, OsType, WebRtcPolicy } from '../../types/profile';
 import { cn } from '../../lib/utils';
 import aetherLogo from '../../assets/logo.png';
 
@@ -47,7 +53,12 @@ export const SettingsView: React.FC = () => {
     setFingerprintRandomizePref,
     setAllFingerprintRandomizePrefs,
     resetFingerprintRandomizePrefs,
+    defaultProfileSettings,
+    updateDefaultProfileSetting,
+    resetDefaultProfileSettings,
   } = useUIStore();
+  const { folders } = useFolderStore();
+  const { proxies } = useProxyStore();
   const { t, language, setLanguage } = useTranslation();
   const { name, askOnStartup, setAskOnStartup, openNamePrompt, resetName } = useUserStore();
   const {
@@ -346,6 +357,266 @@ export const SettingsView: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Default Profile & Bulk Creation Presets */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <CardTitle className="text-xs font-semibold flex items-center gap-2">
+              <Layers className="w-4 h-4 text-primary" />
+              {t.settings.defaultsTitle}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetDefaultProfileSettings}
+              className="h-7 text-[11px] px-2.5 gap-1"
+            >
+              <RotateCcw className="w-3 h-3" />
+              {t.settings.defaultsReset}
+            </Button>
+          </div>
+          <CardDescription className="text-[11px]">
+            {t.settings.defaultsDesc}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5">
+                {t.settings.defaultsOs}
+              </label>
+              <Select
+                value={defaultProfileSettings.osType}
+                onChange={(val) => updateDefaultProfileSetting('osType', val as OsType)}
+                options={[
+                  { value: 'windows', label: 'Windows 10/11' },
+                  { value: 'macos', label: 'macOS (Apple Silicon / Intel)' },
+                  { value: 'linux', label: 'Linux (Ubuntu / Debian)' },
+                ]}
+                triggerClassName="h-8.5 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5">
+                {t.settings.defaultsBrowser}
+              </label>
+              <Select
+                value={defaultProfileSettings.browserType}
+                onChange={(val) => updateDefaultProfileSetting('browserType', val as BrowserType)}
+                options={[
+                  { value: 'brave', label: 'Brave Browser' },
+                  { value: 'chrome', label: 'Google Chrome' },
+                  { value: 'edge', label: 'Microsoft Edge' },
+                ]}
+                triggerClassName="h-8.5 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                <FolderIcon className="w-3 h-3" />
+                {t.settings.defaultsFolder}
+              </label>
+              <Select
+                value={defaultProfileSettings.folderId}
+                onChange={(val) => updateDefaultProfileSetting('folderId', val)}
+                options={[
+                  { value: '', label: `📁 ${t.folders.noFolder}` },
+                  ...folders.map((f) => ({
+                    value: f.id,
+                    label: `${f.icon || '📁'} ${f.name}`,
+                  })),
+                ]}
+                triggerClassName="h-8.5 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5">
+                {t.settings.defaultsTags}
+              </label>
+              <Input
+                value={defaultProfileSettings.defaultTags}
+                onChange={(e) => updateDefaultProfileSetting('defaultTags', e.target.value)}
+                placeholder="e.g. work, accounts"
+                className="h-8.5 text-xs font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5">
+                {t.settings.defaultsProxy}
+              </label>
+              <Select
+                value={defaultProfileSettings.defaultProxyId}
+                onChange={(val) => updateDefaultProfileSetting('defaultProxyId', val)}
+                options={[
+                  { value: '', label: t.modal.noProxyDirect },
+                  ...proxies.map((p) => ({
+                    value: p.id,
+                    label: `${p.title || `${p.host}:${p.port}`} (${p.protocol.toUpperCase()})`,
+                  })),
+                ]}
+                triggerClassName="h-8.5 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5">
+                {t.settings.defaultsWebrtc}
+              </label>
+              <Select
+                value={defaultProfileSettings.webrtcPolicy}
+                onChange={(val) => updateDefaultProfileSetting('webrtcPolicy', val as WebRtcPolicy)}
+                options={[
+                  { value: 'disable_non_proxied_udp', label: 'Disable Non-Proxied UDP (Recommended)' },
+                  { value: 'disabled', label: 'Disabled (Block WebRTC Completely)' },
+                ]}
+                triggerClassName="h-8.5 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5">
+                {t.settings.defaultsResolution}
+              </label>
+              <Select
+                value={
+                  defaultProfileSettings.resolutionMode === 'random'
+                    ? 'random'
+                    : `${defaultProfileSettings.screenWidth}x${defaultProfileSettings.screenHeight}`
+                }
+                onChange={(val) => {
+                  if (val === 'random') {
+                    updateDefaultProfileSetting('resolutionMode', 'random');
+                  } else {
+                    const [w, h] = String(val).split('x').map(Number);
+                    updateDefaultProfileSetting('resolutionMode', 'fixed');
+                    updateDefaultProfileSetting('screenWidth', w || 1920);
+                    updateDefaultProfileSetting('screenHeight', h || 1080);
+                  }
+                }}
+                options={[
+                  { value: 'random', label: `🎲 ${t.settings.defaultsResolutionRandom}` },
+                  ...SCREEN_RESOLUTIONS.map((s) => ({
+                    value: `${s.w}x${s.h}`,
+                    label: s.label,
+                  })),
+                ]}
+                triggerClassName="h-8.5 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5">
+                {t.settings.defaultsTimezone}
+              </label>
+              <Select
+                value={
+                  defaultProfileSettings.timezoneMode === 'random'
+                    ? 'random'
+                    : defaultProfileSettings.timezone
+                }
+                onChange={(val) => {
+                  if (val === 'random') {
+                    updateDefaultProfileSetting('timezoneMode', 'random');
+                  } else {
+                    updateDefaultProfileSetting('timezoneMode', 'fixed');
+                    updateDefaultProfileSetting('timezone', String(val));
+                  }
+                }}
+                options={[
+                  { value: 'random', label: `🎲 ${t.settings.defaultsTimezoneRandom}` },
+                  ...TIMEZONE_LOCALES.map((l) => ({
+                    value: l.tz,
+                    label: l.label,
+                  })),
+                ]}
+                triggerClassName="h-8.5 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5">
+                {t.settings.defaultsCanvas}
+              </label>
+              <Select
+                value={defaultProfileSettings.canvasNoise}
+                onChange={(val) => updateDefaultProfileSetting('canvasNoise', val as CanvasNoiseMode)}
+                options={[
+                  { value: 'noise', label: 'Deterministic Seeded Noise (Recommended)' },
+                  { value: 'block', label: 'Block Canvas Readout' },
+                  { value: 'off', label: 'Off (Real Canvas)' },
+                ]}
+                triggerClassName="h-8.5 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5">
+                {t.settings.defaultsBulkCount}
+              </label>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={defaultProfileSettings.bulkDefaultCount}
+                onChange={(e) =>
+                  updateDefaultProfileSetting('bulkDefaultCount', Math.max(1, Math.min(100, Number(e.target.value) || 1)))
+                }
+                className="h-8.5 text-xs font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5">
+                {t.settings.defaultsBulkPrefix}
+              </label>
+              <Input
+                value={defaultProfileSettings.bulkNamePrefix}
+                onChange={(e) => updateDefaultProfileSetting('bulkNamePrefix', e.target.value)}
+                placeholder="Profile"
+                className="h-8.5 text-xs"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card/60">
+              <span className="text-[11px] font-medium text-foreground pr-2">
+                {t.settings.defaultsWebglAudio}
+              </span>
+              <Switch
+                checked={defaultProfileSettings.webglNoise && defaultProfileSettings.audioNoise}
+                onCheckedChange={(checked) => {
+                  updateDefaultProfileSetting('webglNoise', checked);
+                  updateDefaultProfileSetting('audioNoise', checked);
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/60">
+            <div className="space-y-0.5 pr-4">
+              <span className="text-xs font-medium text-foreground block">
+                {t.settings.defaultsBulkAutoProxy}
+              </span>
+              <span className="text-[11px] text-muted-foreground block">
+                {language === 'pl'
+                  ? 'Automatycznie zaznacza rozdzielanie dostępnych proxy w oknie Masowego Tworzenia.'
+                  : 'Pre-checks round-robin proxy distribution inside the Bulk Generate dialog.'}
+              </span>
+            </div>
+            <Switch
+              checked={defaultProfileSettings.bulkAutoDistributeProxies}
+              onCheckedChange={(checked) =>
+                updateDefaultProfileSetting('bulkAutoDistributeProxies', checked)
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Language Selection Card */}
       <Card>
         <CardHeader>

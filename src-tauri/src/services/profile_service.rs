@@ -2,10 +2,14 @@ use chrono::Utc;
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
-use crate::browser::ProcessManager;
+use crate::browser::{
+    proxy_bridge::{UpstreamProxyConfig, UpstreamProxyType},
+    LaunchProxyMode, ProcessManager,
+};
 use crate::models::{
-    BulkCreateProfilesInput, CreateProfileInput, CreateProxyInput, FingerprintConfig, Profile,
-    ProfileStatus, Proxy, ProxyCheckResult, ProxyProtocol, ProxyStatus, UpdateProfileInput,
+    BrowserType, BulkCreateProfilesInput, CreateProfileInput, CreateProxyInput, FingerprintConfig,
+    OsType, Profile, ProfileStatus, Proxy, ProxyCheckResult, ProxyProtocol, ProxyStatus,
+    UpdateProfileInput,
 };
 use crate::services::proxy_service::test_proxy_connection;
 
@@ -163,9 +167,22 @@ impl ProfileService {
 
         for i in 1..=input.count {
             let name = format!("{} {:02}", input.name_prefix, i);
-            let mut fp = FingerprintConfig::default();
-            fp.os_type = input.os_type.clone();
-            fp.browser_type = input.browser_type.clone();
+            let fp = if let Some(Some(custom_fp)) = input.fingerprints.as_ref().map(|fps| fps.get(i - 1)) {
+                custom_fp.clone()
+            } else {
+                let mut default_fp = FingerprintConfig::default();
+                default_fp.os_type = input.os_type.clone();
+                default_fp.browser_type = input.browser_type.clone();
+                default_fp.user_agent = match (&input.os_type, &input.browser_type) {
+                    (OsType::Windows, BrowserType::Edge) => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0".to_string(),
+                    (OsType::Macos, BrowserType::Edge) => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0".to_string(),
+                    (OsType::Macos, _) => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36".to_string(),
+                    (OsType::Linux, BrowserType::Edge) => "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0".to_string(),
+                    (OsType::Linux, _) => "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36".to_string(),
+                    _ => default_fp.user_agent,
+                };
+                default_fp
+            };
 
             // Distribute proxies if provided
             let proxy_id = if let Some(ref p_ids) = input.proxy_ids {
@@ -329,38 +346,58 @@ impl ProfileService {
             .find(|p| p.id == id)
             .ok_or_else(|| "Profile not found".to_string())?;
 
-        // Retrieve proxy argument and credentials if configured
-        let mut proxy_arg_str = None;
-        let mut proxy_auth_pair = None;
+        // Retrieve proxy configuration if attached (HTTP/SOCKS5 routed via leak-proof local bridge)
+        let mut selected_proxy: Option<Proxy> = None;
         if let Some(ref p_id) = profile.proxy_id {
             if let Ok(proxies) = self.get_proxies().await {
-                if let Some(p) = proxies.into_iter().find(|px| px.id == *p_id) {
-                    let scheme = match p.protocol {
-                        ProxyProtocol::Http => "http",
-                        ProxyProtocol::Https => "https",
-                        ProxyProtocol::Socks5 => "socks5",
-                    };
-                    proxy_arg_str = Some(format!("{}://{}:{}", scheme, p.host, p.port));
-
-                    if let (Some(ref u), Some(ref pw)) = (p.username, p.password) {
-                        let ut = u.trim();
-                        let pwt = pw.trim();
-                        if !ut.is_empty() && !pwt.is_empty() {
-                            proxy_auth_pair = Some((ut.to_string(), pwt.to_string()));
-                        }
-                    }
-                }
+                selected_proxy = proxies.into_iter().find(|px| px.id == *p_id);
             }
         }
 
-        let proxy_auth_refs = proxy_auth_pair
-            .as_ref()
-            .map(|(u, p)| (u.as_str(), p.as_str()));
+        let (pid, port) = if let Some(ref p) = selected_proxy {
+            let auth_user = p.username.as_deref().map(str::trim).filter(|s| !s.is_empty());
+            let auth_pass = p.password.as_deref().map(str::trim).filter(|s| !s.is_empty());
 
-        let (pid, port) = self
-            .process_mgr
-            .launch_profile(id, &profile.fingerprint, proxy_arg_str.as_deref(), proxy_auth_refs)
-            .await?;
+            match p.protocol {
+                ProxyProtocol::Http | ProxyProtocol::Socks5 => {
+                    let kind = match p.protocol {
+                        ProxyProtocol::Socks5 => UpstreamProxyType::Socks5,
+                        _ => UpstreamProxyType::Http,
+                    };
+                    let cfg = UpstreamProxyConfig {
+                        kind,
+                        host: p.host.clone(),
+                        port: p.port as u16,
+                        username: auth_user.map(str::to_string),
+                        password: auth_pass.map(str::to_string),
+                    };
+                    self.process_mgr
+                        .launch_profile(id, &profile.fingerprint, LaunchProxyMode::Bridge(cfg))
+                        .await?
+                }
+                ProxyProtocol::Https => {
+                    let proxy_url = format!("https://{}:{}", p.host, p.port);
+                    let auth = match (auth_user, auth_pass) {
+                        (Some(u), Some(pw)) => Some((u, pw)),
+                        _ => None,
+                    };
+                    self.process_mgr
+                        .launch_profile(
+                            id,
+                            &profile.fingerprint,
+                            LaunchProxyMode::HttpsDirect {
+                                proxy_url: &proxy_url,
+                                auth,
+                            },
+                        )
+                        .await?
+                }
+            }
+        } else {
+            self.process_mgr
+                .launch_profile(id, &profile.fingerprint, LaunchProxyMode::None)
+                .await?
+        };
 
         let now = Utc::now().to_rfc3339();
 

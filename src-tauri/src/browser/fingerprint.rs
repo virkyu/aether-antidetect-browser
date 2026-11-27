@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use crate::browser::shield::primary_locale;
 use crate::models::{BrowserType, FingerprintConfig, WebRtcPolicy};
 
 pub fn detect_chromium_executable(preferred_browser: Option<&BrowserType>) -> Option<PathBuf> {
@@ -242,8 +243,10 @@ pub fn build_cli_arguments(
     port: u16,
     fp: &FingerprintConfig,
     proxy_arg: Option<&str>,
-    ext_dir: Option<&Path>,
+    ext_dirs: &[PathBuf],
 ) -> Vec<String> {
+    let lang_tag = primary_locale(&fp.language);
+
     let mut args = vec![
         format!("--user-data-dir={}", user_data_dir.to_string_lossy()),
         format!("--remote-debugging-port={}", port),
@@ -251,35 +254,34 @@ pub fn build_cli_arguments(
         "--no-first-run".to_string(),
         "--no-default-browser-check".to_string(),
         "--test-type".to_string(),
+        "--disable-blink-features=AutomationControlled".to_string(),
         format!("--user-agent={}", fp.user_agent),
         format!("--window-size={},{}", fp.screen_width, fp.screen_height),
         "--window-position=60,60".to_string(),
         format!("--time-zone-for-testing={}", fp.timezone),
-        format!("--lang={}", fp.language),
+        format!("--lang={}", lang_tag),
         "--disable-infobars".to_string(),
         "--password-store=basic".to_string(),
 
         // --- SPEED & PROXY STABILITY FLAGS ---
-        // 1. Disable QUIC / HTTP3:
-        // Proxies route TCP. QUIC over UDP causes packet drops, forcing 3-5s connection timeouts.
+        // 1. Disable QUIC / HTTP3 (UDP bypass protection & TCP proxy reliability)
         "--disable-quic".to_string(),
 
-        // 2. Disable proactive DNS prefetching:
-        // Stops background DNS leakage while allowing requests to resolve cleanly via the proxy.
+        // 2. Disable proactive DNS prefetching & background Google telemetry
         "--dns-prefetch-disable".to_string(),
+        "--disable-background-networking".to_string(),
 
-        // 3. DNS-over-HTTPS disabled:
-        // Stops DoH from bypassing the proxy.
+        // 3. DNS-over-HTTPS disabled (prevents DoH bypassing system/profile proxy)
         "--dns-over-https-mode=off".to_string(),
 
-        // 4. Bypass proxy for local connections (CDP, localhost, devtools):
-        "--proxy-bypass-list=127.0.0.1;localhost;::1;<local>;*.local".to_string(),
+        // 4. Bypass proxy only for loopback addresses (CDP / local bridge)
+        "--proxy-bypass-list=127.0.0.1;localhost;::1".to_string(),
 
-        // 5. Disk caching enabled:
-        "--disk-cache-size=209715200".to_string(), // 200MB cache
-        "--media-cache-size=104857600".to_string(), // 100MB media cache
+        // 5. Disk caching enabled
+        "--disk-cache-size=209715200".to_string(),
+        "--media-cache-size=104857600".to_string(),
 
-        // 6. Suppress background telemetry, Brave news/wallet background feeds & pings:
+        // 6. Suppress telemetry, Chrome/Brave background pings & component updaters
         "--no-pings".to_string(),
         "--disable-domain-reliability".to_string(),
         "--disable-sync".to_string(),
@@ -293,31 +295,45 @@ pub fn build_cli_arguments(
         args.push(format!("--force-device-scale-factor={}", fp.device_pixel_ratio));
     }
 
-    // WebRTC handling (leak prevention)
-    match fp.webrtc_policy {
-        WebRtcPolicy::DisableNonProxiedUdp => {
+    // WebRTC handling: never allow public interface exposure when behind a proxy!
+    let effective_webrtc = if proxy_arg.is_some() && fp.webrtc_policy == WebRtcPolicy::Default {
+        &WebRtcPolicy::DisableNonProxiedUdp
+    } else {
+        &fp.webrtc_policy
+    };
+
+    match effective_webrtc {
+        WebRtcPolicy::DisableNonProxiedUdp | WebRtcPolicy::Disabled => {
             args.push("--enforce-webrtc-ip-permission-check".to_string());
             args.push("--force-webrtc-ip-handling-policy=disable_non_proxied_udp".to_string());
             args.push("--webrtc-ip-handling-policy=disable_non_proxied_udp".to_string());
-        }
-        WebRtcPolicy::Disabled => {
-            args.push("--enforce-webrtc-ip-permission-check".to_string());
-            args.push("--force-webrtc-ip-handling-policy=disable_non_proxied_udp".to_string());
-            args.push("--disable-webrtc".to_string());
         }
         WebRtcPolicy::Default => {
             args.push("--webrtc-ip-handling-policy=default_public_interface_only".to_string());
         }
     }
 
-    // Proxy configuration (pure, clean, non-blocking routing)
+    // Proxy configuration + strict local DNS leak blocker
     if let Some(proxy_str) = proxy_arg {
         args.push(format!("--proxy-server={}", proxy_str));
+        if let Some(proxy_host) = extract_proxy_host(proxy_str) {
+            args.push(format!(
+                "--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE {} , EXCLUDE 127.0.0.1 , EXCLUDE localhost",
+                proxy_host
+            ));
+        } else {
+            args.push("--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1 , EXCLUDE localhost".to_string());
+        }
     }
 
-    // Proxy authentication background extension
-    if let Some(ext) = ext_dir {
-        args.push(format!("--load-extension={}", ext.to_string_lossy()));
+    // Load Aether Shield Extension (MV3) and optional HTTPS proxy auth extension
+    if !ext_dirs.is_empty() {
+        let joined = ext_dirs
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        args.push(format!("--load-extension={}", joined));
     }
 
     // Fast initial page

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 
-export const APP_VERSION = '1.0.4';
+export const APP_VERSION = '1.0.5';
 const GITHUB_LATEST_API =
   'https://api.github.com/repos/virkyu/aether-antidetect-browser/releases/latest';
 const GITHUB_RELEASES_PAGE =

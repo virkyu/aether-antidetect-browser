@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Dices, X, Plus } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, Plus, ShieldCheck } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -10,6 +10,8 @@ import { useTranslation } from '../../lib/i18n';
 import { useProfileStore } from '../../stores/profileStore';
 import { useProxyStore } from '../../stores/proxyStore';
 import { useFolderStore } from '../../stores/folderStore';
+import { useUIStore } from '../../stores/uiStore';
+import { buildFingerprintFromDefaults } from '../../lib/fingerprintGenerator';
 import { cn } from '../../lib/utils';
 import type { OsType, BrowserType } from '../../types/profile';
 
@@ -17,19 +19,41 @@ export const BulkCreateModal: React.FC = () => {
   const { profiles, activeModal, closeModal, bulkCreateProfiles } = useProfileStore();
   const { proxies } = useProxyStore();
   const { folders, activeFolderId } = useFolderStore();
+  const defaultProfileSettings = useUIStore((s) => s.defaultProfileSettings);
   const { t } = useTranslation();
 
   const isOpen = activeModal === 'bulk_create';
 
-  const [count, setCount] = useState(5);
-  const [namePrefix, setNamePrefix] = useState('Profile');
-  const [groupId, setGroupId] = useState<string>(activeFolderId && activeFolderId !== 'unassigned' ? activeFolderId : '');
-  const [osType, setOsType] = useState<OsType>('windows');
-  const [browserType, setBrowserType] = useState<BrowserType>('brave');
-  const [tags, setTags] = useState('fleet');
-  const [useProxies, setUseProxies] = useState(false);
+  const [count, setCount] = useState(defaultProfileSettings.bulkDefaultCount || 5);
+  const [namePrefix, setNamePrefix] = useState(defaultProfileSettings.bulkNamePrefix || 'Profile');
+  const [groupId, setGroupId] = useState<string>(
+    activeFolderId && activeFolderId !== 'unassigned'
+      ? activeFolderId
+      : defaultProfileSettings.folderId || ''
+  );
+  const [osType, setOsType] = useState<OsType>(defaultProfileSettings.osType);
+  const [browserType, setBrowserType] = useState<BrowserType>(defaultProfileSettings.browserType);
+  const [tags, setTags] = useState(defaultProfileSettings.defaultTags || 'fleet');
+  const [useProxies, setUseProxies] = useState(defaultProfileSettings.bulkAutoDistributeProxies);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Sync from user's Settings Defaults whenever modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    setSubmitError(null);
+    setCount(defaultProfileSettings.bulkDefaultCount || 5);
+    setNamePrefix(defaultProfileSettings.bulkNamePrefix || 'Profile');
+    setGroupId(
+      activeFolderId && activeFolderId !== 'unassigned'
+        ? activeFolderId
+        : defaultProfileSettings.folderId || ''
+    );
+    setOsType(defaultProfileSettings.osType);
+    setBrowserType(defaultProfileSettings.browserType);
+    setTags(defaultProfileSettings.defaultTags || 'fleet');
+    setUseProxies(defaultProfileSettings.bulkAutoDistributeProxies);
+  }, [isOpen, activeFolderId, defaultProfileSettings]);
 
   // Existing tags across all profiles
   const existingTags = useMemo(() => {
@@ -76,6 +100,13 @@ export const BulkCreateModal: React.FC = () => {
 
       const proxyIds = useProxies && proxies.length > 0 ? proxies.map((p) => p.id) : undefined;
       const matchedFolder = folders.find((f) => f.id === groupId);
+      const fingerprints = Array.from({ length: count }, () =>
+        buildFingerprintFromDefaults(defaultProfileSettings, {
+          osType,
+          browserType,
+          forBulk: true,
+        })
+      );
 
       await bulkCreateProfiles({
         count,
@@ -86,6 +117,7 @@ export const BulkCreateModal: React.FC = () => {
         browserType,
         tags: tagArray,
         proxyIds,
+        fingerprints,
       });
       closeModal();
     } catch (err: any) {
@@ -264,11 +296,16 @@ export const BulkCreateModal: React.FC = () => {
           </div>
         )}
 
-        <div className="p-3 rounded-lg bg-muted/40 border border-border text-[11px] text-muted-foreground flex items-center gap-2">
-          <Dices className="w-4 h-4 text-foreground shrink-0" />
-          <span>
-            Every profile automatically receives unique screen metrics, randomized User-Agents, and isolated directory storage.
-          </span>
+        <div className="p-3 rounded-lg bg-muted/40 border border-border text-[11px] text-muted-foreground flex items-start gap-2.5">
+          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="text-foreground font-medium block">
+              Domyślne ustawienia z Ustawień aktywne ({defaultProfileSettings.webrtcPolicy === 'disabled' ? 'WebRTC Blocked' : 'WebRTC Non-Proxied UDP Off'}, Canvas: {defaultProfileSettings.canvasNoise}, {defaultProfileSettings.timezoneMode === 'random' ? 'Losowa strefa' : defaultProfileSettings.timezone})
+            </span>
+            <span>
+              Każdy wygenerowany profil otrzymuje unikalny User-Agent, hardware (CPU/RAM), indywidualne ziarno Canvas/WebGL/Audio oraz własny katalog danych.
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">

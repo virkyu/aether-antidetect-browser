@@ -5,6 +5,12 @@ import {
   saveFingerprintRandomizePrefs,
   type FingerprintRandomizePrefs,
 } from '../lib/fingerprintPrefs';
+import {
+  DEFAULT_PROFILE_SETTINGS,
+  loadDefaultProfileSettings,
+  saveDefaultProfileSettings,
+  type DefaultProfileSettings,
+} from '../lib/profileDefaults';
 
 export type Language = 'pl' | 'en';
 export type ThemeColor = 'default' | 'emerald' | 'blue' | 'purple' | 'amber' | 'rose' | 'cyan';
@@ -39,6 +45,12 @@ interface UIState {
   setFingerprintRandomizePref: (key: keyof FingerprintRandomizePrefs, value: boolean) => void;
   setAllFingerprintRandomizePrefs: (enabled: boolean) => void;
   resetFingerprintRandomizePrefs: () => void;
+  defaultProfileSettings: DefaultProfileSettings;
+  updateDefaultProfileSetting: <K extends keyof DefaultProfileSettings>(
+    key: K,
+    value: DefaultProfileSettings[K]
+  ) => void;
+  resetDefaultProfileSettings: () => void;
 }
 
 const STORAGE_KEY = 'aether_ui_scale_v4';
@@ -210,5 +222,21 @@ export const useUIStore = create<UIState>((set) => ({
       const next = { ...DEFAULT_FINGERPRINT_RANDOMIZE_PREFS };
       saveFingerprintRandomizePrefs(next);
       return { fingerprintRandomizePrefs: next };
+    }),
+
+  defaultProfileSettings: loadDefaultProfileSettings(),
+
+  updateDefaultProfileSetting: (key, value) =>
+    set((state) => {
+      const next = { ...state.defaultProfileSettings, [key]: value };
+      saveDefaultProfileSettings(next);
+      return { defaultProfileSettings: next };
+    }),
+
+  resetDefaultProfileSettings: () =>
+    set(() => {
+      const next = { ...DEFAULT_PROFILE_SETTINGS };
+      saveDefaultProfileSettings(next);
+      return { defaultProfileSettings: next };
     }),
 }));

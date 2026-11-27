@@ -6,10 +6,22 @@ use std::time::Instant;
 use tokio::process::Child;
 use tokio::sync::Mutex;
 
+use crate::browser::cdp::{spawn_cdp_supervisor, CdpSupervisorHandle};
 use crate::browser::fingerprint::{
     build_cli_arguments, create_proxy_auth_extension, detect_chromium_executable,
 };
-use crate::models::FingerprintConfig;
+use crate::browser::proxy_bridge::{start_proxy_bridge, ProxyBridgeHandle, UpstreamProxyConfig};
+use crate::browser::shield::create_shield_extension;
+use crate::models::{FingerprintConfig, WebRtcPolicy};
+
+pub enum LaunchProxyMode<'a> {
+    None,
+    Bridge(UpstreamProxyConfig),
+    HttpsDirect {
+        proxy_url: &'a str,
+        auth: Option<(&'a str, &'a str)>,
+    },
+}
 
 pub struct ActiveSession {
     pub pid: u32,
@@ -17,6 +29,8 @@ pub struct ActiveSession {
     pub started_at: Instant,
     pub child: Child,
     pub profile_dir: PathBuf,
+    pub proxy_bridge: Option<ProxyBridgeHandle>,
+    pub cdp_supervisor: CdpSupervisorHandle,
 }
 
 #[derive(Clone)]
@@ -46,13 +60,22 @@ impl ProcessManager {
         &self,
         profile_id: &str,
         fp: &FingerprintConfig,
-        proxy_arg: Option<&str>,
-        proxy_auth: Option<(&str, &str)>,
+        proxy_mode: LaunchProxyMode<'_>,
     ) -> Result<(u32, u16), String> {
         let mut sessions = self.sessions.lock().await;
 
-        if sessions.contains_key(profile_id) {
-            return Err("Profile is already running".to_string());
+        // Clean up exited dead session if user closed browser window manually
+        if let Some(existing) = sessions.get_mut(profile_id) {
+            if let Ok(Some(_status)) = existing.child.try_wait() {
+                if let Some(mut dead) = sessions.remove(profile_id) {
+                    if let Some(ref mut bridge) = dead.proxy_bridge {
+                        bridge.stop();
+                    }
+                    dead.cdp_supervisor.stop();
+                }
+            } else {
+                return Err("Profile is already running".to_string());
+            }
         }
 
         let exe_path = detect_chromium_executable(Some(&fp.browser_type))
@@ -69,24 +92,23 @@ impl ProcessManager {
             .await
             .map_err(|e| format!("Failed to create user data directory: {}", e))?;
 
-        // Check and clean any stale lockfiles
+        // Clean stale lockfiles
         let lock_file = profile_dir.join(".lock");
         if lock_file.exists() {
-            tracing::warn!("Existing lockfile detected for profile {}, cleaning up", profile_id);
             let _ = tokio::fs::remove_file(&lock_file).await;
         }
-
         let singleton_lock = data_dir.join("SingletonLock");
         if singleton_lock.exists() {
             let _ = tokio::fs::remove_file(&singleton_lock).await;
         }
-
         let chromium_lock = data_dir.join("lockfile");
         if chromium_lock.exists() {
             let _ = tokio::fs::remove_file(&chromium_lock).await;
         }
 
-        // Pre-configure Chromium / Brave Default Preferences safely (merge to preserve disk cache, cookies and performance)
+        let has_proxy = !matches!(proxy_mode, LaunchProxyMode::None);
+
+        // Pre-configure Chromium / Brave Default Preferences safely
         let default_dir = data_dir.join("Default");
         let _ = tokio::fs::create_dir_all(&default_dir).await;
         let prefs_file = default_dir.join("Preferences");
@@ -104,34 +126,61 @@ impl ProcessManager {
             prefs_data = serde_json::json!({});
         }
 
-        prefs_data["webrtc"] = serde_json::json!({
-            "ip_handling_policy": "disable_non_proxied_udp"
-        });
+        let enforce_strict_webrtc = has_proxy || fp.webrtc_policy != WebRtcPolicy::Default;
+        if enforce_strict_webrtc {
+            prefs_data["webrtc"] = serde_json::json!({
+                "ip_handling_policy": "disable_non_proxied_udp",
+                "multiple_routes_enabled": false,
+                "nonproxied_udp_enabled": false
+            });
+        } else {
+            prefs_data["webrtc"] = serde_json::json!({
+                "ip_handling_policy": "default_public_interface_only"
+            });
+        }
+
         prefs_data["dns_over_https"] = serde_json::json!({
             "mode": "off"
         });
         prefs_data["net"] = serde_json::json!({
             "network_prediction_options": 2
         });
-        prefs_data["brave"] = serde_json::json!({
-            "shields": {
-                "stats": false
-            },
-            "brave_news": {
-                "enabled": false
-            },
-            "brave_ads": {
-                "enabled": false
-            },
-            "today": {
-                "enabled": false
-            },
-            "p3a": {
-                "enabled": false
-            },
-            "wallet": {
-                "enabled": false
+        prefs_data["enable_do_not_track"] = serde_json::json!(fp.do_not_track);
+
+        if let Some(intl) = prefs_data.get_mut("intl").and_then(|v| v.as_object_mut()) {
+            intl.insert("accept_languages".to_string(), serde_json::json!(fp.language));
+        } else {
+            prefs_data["intl"] = serde_json::json!({
+                "accept_languages": fp.language
+            });
+        }
+
+        if let Some(prof) = prefs_data.get_mut("profile").and_then(|v| v.as_object_mut()) {
+            prof.insert("exit_type".to_string(), serde_json::json!("Normal"));
+            prof.insert("exited_cleanly".to_string(), serde_json::json!(true));
+        } else {
+            prefs_data["profile"] = serde_json::json!({
+                "exit_type": "Normal",
+                "exited_cleanly": true
+            });
+        }
+
+        if fp.geolocation.mode == "block" {
+            if let Some(prof) = prefs_data.get_mut("profile").and_then(|v| v.as_object_mut()) {
+                prof.insert(
+                    "default_content_setting_values".to_string(),
+                    serde_json::json!({ "geolocation": 2 }),
+                );
             }
+        }
+
+        prefs_data["brave"] = serde_json::json!({
+            "shields": { "stats": false },
+            "brave_news": { "enabled": false },
+            "brave_ads": { "enabled": false },
+            "today": { "enabled": false },
+            "p3a": { "enabled": false },
+            "wallet": { "enabled": false }
         });
         prefs_data["safebrowsing"] = serde_json::json!({
             "enabled": false
@@ -141,24 +190,43 @@ impl ProcessManager {
             let _ = tokio::fs::write(&prefs_file, serialized).await;
         }
 
-        // Generate proxy authentication extension only if credentials provided
-        let ext_dir = if let Some((user, pass)) = proxy_auth {
-            match create_proxy_auth_extension(&profile_dir, user, pass).await {
-                Ok(path) => {
-                    tracing::info!("Created proxy auth extension at {:?}", path);
-                    Some(path)
-                }
-                Err(e) => {
-                    tracing::error!("Failed to create proxy auth extension: {}", e);
-                    None
+        // Setup proxy bridge (for HTTP & SOCKS5 with zero auth/DNS leaks) or HTTPS direct fallback
+        let mut bridge_handle: Option<ProxyBridgeHandle> = None;
+        let mut ext_dirs: Vec<PathBuf> = Vec::new();
+        let proxy_arg_str: Option<String>;
+
+        match proxy_mode {
+            LaunchProxyMode::None => {
+                proxy_arg_str = None;
+            }
+            LaunchProxyMode::Bridge(cfg) => {
+                let handle = start_proxy_bridge(cfg).await?;
+                proxy_arg_str = Some(format!("http://127.0.0.1:{}", handle.local_port));
+                tracing::info!(
+                    "Started leak-proof local proxy bridge on 127.0.0.1:{} for profile {}",
+                    handle.local_port,
+                    profile_id
+                );
+                bridge_handle = Some(handle);
+            }
+            LaunchProxyMode::HttpsDirect { proxy_url, auth } => {
+                proxy_arg_str = Some(proxy_url.to_string());
+                if let Some((u, p)) = auth {
+                    if let Ok(ext) = create_proxy_auth_extension(&profile_dir, u, p).await {
+                        ext_dirs.push(ext);
+                    }
                 }
             }
-        } else {
-            None
-        };
+        }
+
+        // Always generate MV3 Aether Fingerprint Shield extension
+        match create_shield_extension(&profile_dir, profile_id, fp, has_proxy).await {
+            Ok(shield_ext) => ext_dirs.push(shield_ext),
+            Err(e) => tracing::warn!("Could not write MV3 shield extension (CDP fallback still active): {}", e),
+        }
 
         let port = Self::find_free_port()?;
-        let args = build_cli_arguments(&data_dir, port, fp, proxy_arg, ext_dir.as_deref());
+        let args = build_cli_arguments(&data_dir, port, fp, proxy_arg_str.as_deref(), &ext_dirs);
 
         tracing::info!(
             "Spawning browser executable {:?} with data dir {:?} on port {}",
@@ -180,8 +248,14 @@ impl ProcessManager {
             .id()
             .ok_or_else(|| "Failed to retrieve process ID from spawned child".to_string())?;
 
-        // Write lockfile
         let _ = tokio::fs::write(&lock_file, pid.to_string()).await;
+
+        let cdp_supervisor = spawn_cdp_supervisor(
+            port,
+            profile_id.to_string(),
+            fp.clone(),
+            has_proxy,
+        );
 
         let session = ActiveSession {
             pid,
@@ -189,6 +263,8 @@ impl ProcessManager {
             started_at: Instant::now(),
             child,
             profile_dir,
+            proxy_bridge: bridge_handle,
+            cdp_supervisor,
         };
 
         sessions.insert(profile_id.to_string(), session);
@@ -202,10 +278,13 @@ impl ProcessManager {
         if let Some(mut session) = sessions.remove(profile_id) {
             let duration = session.started_at.elapsed().as_secs();
 
-            // Attempt graceful kill
+            session.cdp_supervisor.stop();
+            if let Some(ref mut bridge) = session.proxy_bridge {
+                bridge.stop();
+            }
+
             let _ = session.child.kill().await;
 
-            // Remove lockfile
             let lock_file = session.profile_dir.join(".lock");
             let _ = tokio::fs::remove_file(&lock_file).await;
 
@@ -216,8 +295,21 @@ impl ProcessManager {
     }
 
     pub async fn is_running(&self, profile_id: &str) -> bool {
-        let sessions = self.sessions.lock().await;
-        sessions.contains_key(profile_id)
+        let mut sessions = self.sessions.lock().await;
+        if let Some(session) = sessions.get_mut(profile_id) {
+            if let Ok(Some(_)) = session.child.try_wait() {
+                if let Some(mut dead) = sessions.remove(profile_id) {
+                    dead.cdp_supervisor.stop();
+                    if let Some(ref mut bridge) = dead.proxy_bridge {
+                        bridge.stop();
+                    }
+                    let _ = std::fs::remove_file(dead.profile_dir.join(".lock"));
+                }
+                return false;
+            }
+            return true;
+        }
+        false
     }
 
     pub async fn get_session_info(&self, profile_id: &str) -> Option<(u32, u16, u64)> {

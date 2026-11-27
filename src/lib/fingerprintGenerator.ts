@@ -3,6 +3,7 @@ import {
   loadFingerprintRandomizePrefs,
   type FingerprintRandomizePrefs,
 } from './fingerprintPrefs';
+import type { DefaultProfileSettings } from './profileDefaults';
 
 const USER_AGENTS: Record<OsType, Record<BrowserType, string[]>> = {
   windows: {
@@ -92,6 +93,72 @@ function randomChoiceDifferent<T>(arr: T[], current?: T): T {
   if (arr.length <= 1 || current === undefined) return randomChoice(arr);
   const filtered = arr.filter((item) => item !== current);
   return filtered.length > 0 ? randomChoice(filtered) : randomChoice(arr);
+}
+
+/**
+ * Builds a complete, leak-protected FingerprintConfig from the user's Settings defaults.
+ * Used by both Single Profile Create and Bulk Create so both share the exact same defaults,
+ * while varying UA & hardware across bulk instances so accounts never look cloned.
+ */
+export function buildFingerprintFromDefaults(
+  defaults: DefaultProfileSettings,
+  overrides: { osType?: OsType; browserType?: BrowserType; forBulk?: boolean } = {}
+): FingerprintConfig {
+  const osType = overrides.osType || defaults.osType;
+  const browserType = overrides.browserType || defaults.browserType;
+  const uaList = USER_AGENTS[osType]?.[browserType] || USER_AGENTS.windows.chrome;
+  const userAgent = randomChoice(uaList);
+
+  const screen =
+    defaults.resolutionMode === 'random'
+      ? randomChoice(SCREEN_RESOLUTIONS)
+      : SCREEN_RESOLUTIONS.find(
+          (s) => s.w === defaults.screenWidth && s.h === defaults.screenHeight
+        ) || {
+          w: defaults.screenWidth,
+          h: defaults.screenHeight,
+          dpr: 1,
+          label: `${defaults.screenWidth}x${defaults.screenHeight}`,
+        };
+
+  const locale =
+    defaults.timezoneMode === 'random'
+      ? randomChoice(TIMEZONE_LOCALES)
+      : TIMEZONE_LOCALES.find((l) => l.tz === defaults.timezone) || {
+          tz: defaults.timezone,
+          lang: 'en-US,en;q=0.9',
+          label: defaults.timezone,
+        };
+
+  const prefs = loadFingerprintRandomizePrefs();
+  const hardwareConcurrency =
+    overrides.forBulk || prefs.hardware
+      ? randomChoice(HARDWARE_CORES)
+      : defaults.hardwareConcurrency;
+  const deviceMemoryGb =
+    overrides.forBulk || prefs.hardware
+      ? randomChoice(MEMORY_OPTIONS)
+      : defaults.deviceMemoryGb;
+
+  return {
+    userAgent,
+    osType,
+    browserType,
+    browserVersion: '133.0.0.0',
+    screenWidth: screen.w,
+    screenHeight: screen.h,
+    devicePixelRatio: screen.dpr,
+    language: locale.lang,
+    timezone: locale.tz,
+    geolocation: { mode: 'auto' },
+    webrtcPolicy: defaults.webrtcPolicy,
+    canvasNoise: defaults.canvasNoise,
+    webglNoise: defaults.webglNoise,
+    audioNoise: defaults.audioNoise,
+    hardwareConcurrency,
+    deviceMemoryGb,
+    doNotTrack: false,
+  };
 }
 
 /**
